@@ -1,0 +1,84 @@
+{
+    "version": 1,
+    "disable_existing_loggers": false,
+    "formatters": {
+        "default": {
+            "()": "uvicorn.logging.DefaultFormatter",
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        },
+        "access": {
+            "()": "uvicorn.logging.AccessFormatter",
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        }
+    },
+    "handlers": {
+        "nullable": {
+            "formatter": "default",
+            "class": "logging.NullHandler"
+        },
+        "console_handler": {
+           "class": "logging.StreamHandler",
+           "level": "INFO",
+           "formatter": "default",
+           "stream": "ext://sys.stdout"
+       },
+       "file_handler": {
+         "class": "logging.handlers.RotatingFileHandler",
+         "level": "INFO",
+         "formatter": "default",
+         "filename": "logs/log.log",
+         "maxBytes": 20971520,
+         "backupCount": 20,
+         "encoding": "utf8"
+       },
+       "access_file_handler": {
+         "class": "logging.handlers.RotatingFileHandler",
+         "level": "INFO",
+         "formatter": "default",
+         "filename": "logs/access.log",
+         "maxBytes": 20971520,
+         "backupCount": 20,
+         "encoding": "utf8"
+       },
+       "errors_file_handler": {
+         "class": "logging.handlers.RotatingFileHandler",
+         "level": "ERROR",
+         "formatter": "default",
+         "filename": "logs/errors.log",
+         "maxBytes": 20971520,
+         "backupCount": 20,
+         "encoding": "utf8"
+       }
+    },
+    "root": {
+        "level": "INFO",
+        "handlers": [
+            "console_handler",
+            "file_handler",
+            "errors_file_handler"
+        ]
+    },
+    "loggers": {
+        "apscheduler._schedulers.async_": {
+            "level": "INFO",
+            "handlers": [
+                "nullable"
+            ],
+            "propagate": false
+        },
+        "uvicorn.access": {
+            "level": "INFO",
+            "handlers": [
+                "access_file_handler"
+            ],
+            "propagate": false
+        },
+        "aiogram.event": {
+            "level": "INFO",
+            "handlers": [
+                "access_file_handler"
+            ],
+            "propagate": false
+        }
+    }
+}
