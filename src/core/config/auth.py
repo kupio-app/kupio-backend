@@ -8,3 +8,6 @@ class AuthConfig(EnvSettings, env_prefix="AUTH__"):
     jwt_algorithm: str = "HS256"
     access_ttl: int = 15  # in minutes
     refresh_ttl: int = 7  # in days
+    not_validate_exp: bool = (
+        False  # For testing purposes, disable expiration validation
+    )

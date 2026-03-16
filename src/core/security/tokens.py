@@ -52,6 +52,9 @@ def decode_access_token(token: str, config: AuthConfig) -> str:
     :raises: jwt.ExpiredSignatureError, jwt.JWTError
     """
     payload = jwt.decode(
-        token, config.jwt_secret.get_secret_value(), algorithms=[config.jwt_algorithm]
+        token,
+        config.jwt_secret.get_secret_value(),
+        algorithms=[config.jwt_algorithm],
+        options={"verify_exp": not config.not_validate_exp},
     )
     return payload["sub"]
