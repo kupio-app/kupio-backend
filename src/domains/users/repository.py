@@ -12,8 +12,6 @@ class UsersRepository(BaseRepository):
         *,
         email: str,
         username: str,
-        first_name: str,
-        last_name: str,
         password_hash: str,
         role: UserRole = UserRole.USER,
     ) -> User:
@@ -21,8 +19,6 @@ class UsersRepository(BaseRepository):
             User,
             email=email,
             username=username,
-            first_name=first_name,
-            last_name=last_name,
             password_hash=password_hash,
             role=role,
         )

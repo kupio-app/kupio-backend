@@ -23,14 +23,16 @@ class UsersService:
 
     async def create_user(self, data: UserCreate):
         async with self.uow:
-            existing = await self.users_repo.get_by_email(data.email)
-            if existing is not None:
-                raise HTTPException(status_code=409, detail="User already exists")
+            user_by_email = await self.users_repo.get_by_email(data.email)
+            if user_by_email is not None:
+                raise HTTPException(status_code=400, detail="User already exists")
+
+            user_by_username = await self.users_repo.get_by_username(data.username)
+            if user_by_username is not None:
+                raise HTTPException(status_code=400, detail="User already exists")
 
             return await self.users_repo.create(
                 email=data.email,
-                first_name=data.first_name,
-                last_name=data.last_name,
                 username=data.username,
                 password_hash=hash_password(data.password),
             )

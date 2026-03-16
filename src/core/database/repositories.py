@@ -2,13 +2,13 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .base_repository import BaseRepository
+from src.domains.users.repository import UsersRepository
 
 
 @dataclass(slots=True)
 class Repositories:
-    users: BaseRepository
+    users: UsersRepository
 
     @classmethod
     def from_session(cls, session: AsyncSession) -> "Repositories":
-        return cls(users=BaseRepository(session=session))
+        return cls(users=UsersRepository(session=session))

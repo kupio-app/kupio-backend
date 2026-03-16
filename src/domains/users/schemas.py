@@ -7,8 +7,6 @@ from src.domains.users.enums import UserRole
 
 class UserCreate(BaseModel):
     email: str
-    first_name: str
-    last_name: str
     username: str
     password: str
 
