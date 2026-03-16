@@ -8,9 +8,9 @@ from src.core.security import (
     generate_refresh_token,
     verify_password,
     hash_refresh_token,
+    hash_password,
 )
 from src.domains.users.models import User
-from src.domains.users.service import UsersService
 from src.domains.users.repository import UsersRepository
 
 from .repository import SessionsRepository
@@ -62,13 +62,21 @@ class AuthService:
             await self.sessions.revoke_by_token_hash(refresh_hash)
 
     async def register(self, payload: RegisterRequest) -> TokensResponse:
-        users_service = UsersService(self.repos, self.uow)
-
-        user = await users_service.create_user(
-            password=payload.password, email=payload.email, username=payload.username
-        )
-
         async with self.uow:
+            user_by_email = await self.users_repo.get_by_email(payload.email)
+            if user_by_email is not None:
+                raise HTTPException(status_code=409, detail="User already exists")
+
+            user_by_username = await self.users_repo.get_by_username(payload.username)
+            if user_by_username is not None:
+                raise HTTPException(status_code=409, detail="User already exists")
+
+            user = await self.users_repo.create(
+                email=payload.email,
+                username=payload.username,
+                password_hash=hash_password(payload.password),
+            )
+
             return await self._issue_token_pair(user)
 
     async def _issue_token_pair(self, user: User) -> TokensResponse:
