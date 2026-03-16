@@ -22,4 +22,4 @@ def init_redis(app: FastAPI, config: AppConfig) -> Redis | None:
 
 async def shutdown_redis(app: FastAPI) -> None:
     """Shutdown Redis client."""
-    await app.state.redis.shutdown()
+    await app.state.redis.aclose()
