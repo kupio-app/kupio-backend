@@ -12,6 +12,9 @@ from src.core.utils.mjson import database_json_serializer
 
 
 def _create_db_pool(url: URL) -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
+    """
+    Create database connection pool.
+    """
     engine: AsyncEngine = create_async_engine(
         url=url,
         pool_size=20,
@@ -28,6 +31,12 @@ def _create_db_pool(url: URL) -> tuple[AsyncEngine, async_sessionmaker[AsyncSess
 def init_db(
     app: FastAPI, config: AppConfig
 ) -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
+    """
+    Initialize database connection pool and session factory.
+    Place them in application state for later use.
+
+    :return: Database engine and session factory.
+    """
     engine, session_factory = _create_db_pool(config.postgres.build_url())
     app.state.db_engine = engine
     app.state.db_session_factory = session_factory
@@ -36,4 +45,5 @@ def init_db(
 
 
 async def shutdown_db(app: FastAPI) -> None:
+    """Shutdown database connection pool."""
     await app.state.db_engine.dispose()
