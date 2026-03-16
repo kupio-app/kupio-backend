@@ -1,3 +1,4 @@
+import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -7,9 +8,19 @@ from jose import jwt
 from src.core.config import AuthConfig
 
 
-def generate_refresh_token() -> str:
-    """Cryptographically secure random string for refresh token"""
-    return secrets.token_urlsafe(64)
+def hash_refresh_token(refresh_token: str) -> str:
+    return hashlib.sha256(refresh_token.encode("utf-8")).hexdigest()
+
+
+def generate_refresh_token(config: AuthConfig) -> tuple[str, datetime]:
+    """
+    Cryptographically secure random string for refresh token and expiration time
+
+    :return: (token, expire_at)
+    """
+    expire_at = datetime.now(UTC) + timedelta(days=config.refresh_ttl)
+
+    return secrets.token_urlsafe(64), expire_at
 
 
 def create_access_token(user_id: str, config: AuthConfig) -> tuple[str, str]:
