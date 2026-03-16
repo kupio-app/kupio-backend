@@ -1,8 +1,10 @@
+from functools import lru_cache
+
 from .app import AppConfig
+from .auth import AuthConfig
 from .postgres import PostgresConfig
 from .redis import RedisConfig
-
-from functools import lru_cache
+from .server import ServerConfig
 
 
 @lru_cache(maxsize=1)
