@@ -24,4 +24,4 @@ custom_encoder = Encoder(enc_hook=_enc_hook)
 
 
 def database_json_serializer(obj: Any) -> str:
-    return msgspec.json.format(custom_encoder.encode(obj), indent=2).decode()
+    return msgspec.json.format(custom_encoder.encode(obj)).decode()
