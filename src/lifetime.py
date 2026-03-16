@@ -14,7 +14,8 @@ async def lifespan(app: FastAPI):
     engine, session_pool = init_db(app, config)
     redis = init_redis(app, config)
 
-    yield
-
-    await shutdown_db(app)
-    await shutdown_redis(app)
+    try:
+        yield
+    finally:
+        await shutdown_db(app)
+        await shutdown_redis(app)
