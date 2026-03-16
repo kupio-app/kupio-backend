@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, status
 
-from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
-from src.core.dependencies import get_current_user, get_repo, get_uow
+from src.core.dependencies import get_current_user, get_uow, RepositoriesDeps
 from src.domains.users.models import User
 from src.domains.users.schemas import UserPrivate
 
@@ -19,7 +18,7 @@ router = APIRouter()
 
 
 def get_auth_service(
-    repos: Repositories = Depends(get_repo),
+    repos: RepositoriesDeps,
     uow: UoW = Depends(get_uow),
 ) -> AuthService:
     return AuthService(repos=repos, uow=uow)
