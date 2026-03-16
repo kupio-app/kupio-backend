@@ -23,7 +23,7 @@ def _create_db_pool(url: URL) -> tuple[AsyncEngine, async_sessionmaker[AsyncSess
     )
 
     session_factory = async_sessionmaker(
-        engine, autocommit=False, autoflush=False, expire_on_commit=False
+        engine, autoflush=False, expire_on_commit=False
     )
     return engine, session_factory
 
