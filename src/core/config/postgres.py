@@ -4,7 +4,7 @@ from sqlalchemy import URL
 from .base import EnvSettings
 
 
-class PostgresConfig(EnvSettings, env_prefix="POSTGRES"):
+class PostgresConfig(EnvSettings, env_prefix="POSTGRES__"):
     host: str
     db: str
     password: SecretStr

@@ -1,11 +1,8 @@
-from typing import Any, Optional, TypeVar, cast, Sequence
+from typing import Any, Optional, Sequence, TypeVar, cast
 
-from fastapi import Depends
-from sqlalchemy import ColumnExpressionArgument, delete, select, update, insert
+from sqlalchemy import ColumnExpressionArgument, delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..dependencies import get_db_session
-from .uow import UoW
 from .base_model import Base
 
 ModelType = TypeVar("ModelType", bound=Base)
@@ -13,11 +10,11 @@ ModelType = TypeVar("ModelType", bound=Base)
 
 class BaseRepository:
     session: AsyncSession
-    uow: UoW
 
-    def __init__(self, session: AsyncSession = Depends(get_db_session)) -> None:
+    __slots__ = ("session",)
+
+    def __init__(self, session: AsyncSession) -> None:
         self.session = session
-        self.uow = UoW(session=session)
 
     async def _get(
         self,
@@ -41,11 +38,11 @@ class BaseRepository:
     async def _scalars_all(self, stmt) -> list:
         return list(await self.session.scalars(stmt))
 
-    async def _add(self, model: type[ModelType], **kwargs) -> ModelType:
+    async def _add(self, model: type[ModelType], **kwargs: Any) -> ModelType:
         stmt = insert(model).values(**kwargs).returning(model)
         resp = await self.session.scalar(stmt)
-        await self.session.commit()
-        return resp
+        await self.session.flush()
+        return cast(ModelType, resp)
 
     async def _update(
         self,
@@ -65,7 +62,7 @@ class BaseRepository:
             query = query.returning(model)
 
         result = await self.session.execute(query)
-        await self.session.commit()
+        await self.session.flush()
 
         if load_result:
             result = result.unique()
@@ -81,5 +78,5 @@ class BaseRepository:
         self, model: type[ModelType], *conditions: ColumnExpressionArgument[Any]
     ) -> bool:
         result = await self.session.execute(delete(model).where(*conditions))
-        await self.session.commit()
-        return cast(bool, result.rowcount > 0)
+        await self.session.flush()
+        return bool(getattr(result, "rowcount", 0) > 0)

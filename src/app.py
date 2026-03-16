@@ -18,9 +18,9 @@ def get_app() -> FastAPI:
 
     app = FastAPI(
         title="Kupio Backend",
-        docs_url="/api/docs" if not config.debug else None,
-        redoc_url="/api/redoc" if not config.debug else None,
-        openapi_url="/api/openapi.json" if not config.debug else None,
+        docs_url="/api/docs" if not config.server.debug else None,
+        redoc_url="/api/redoc" if not config.server.debug else None,
+        openapi_url="/api/openapi.json" if not config.server.debug else None,
         lifespan=lifespan,
     )
     app.include_router(api_router, prefix="/api")
