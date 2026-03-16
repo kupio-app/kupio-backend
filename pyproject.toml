@@ -16,6 +16,9 @@ dependencies = [
     "msgspec (>=0.20.0,<0.21.0)",
     "uvicorn (>=0.41.0,<0.42.0)",
     "redis[asyncio] (>=7.3.0,<8.0.0)",
+    "python-jose[cryptography] (>=3.5.0,<4.0.0)",
+    "passlib[argon] (>=1.7.4,<2.0.0)",
+    "argon2-cffi (>=25.1.0,<26.0.0)",
 ]
 
 
