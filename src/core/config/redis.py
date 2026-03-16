@@ -1,7 +1,7 @@
 from .base import EnvSettings
 
 
-class RedisConfig(EnvSettings, env_prefix="REDIS"):
+class RedisConfig(EnvSettings, env_prefix="REDIS__"):
     host: str
     port: int
     db: int
