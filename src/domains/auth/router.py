@@ -37,7 +37,7 @@ async def refresh(
     payload: RefreshRequest,
     service: AuthService = Depends(get_auth_service),
 ) -> TokensResponse:
-    return await service.refresh(payload.refresh_token)
+    return await service.refresh(payload)
 
 
 @router.post("/logout", status_code=status.HTTP_202_ACCEPTED)

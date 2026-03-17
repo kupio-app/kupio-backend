@@ -3,19 +3,19 @@ from pydantic import BaseModel
 from src.domains.users.schemas import UserPrivate
 
 
-class RegisterRequest(BaseModel):
-    email: str
-    password: str
-    username: str
-
-
 class LoginRequest(BaseModel):
     email: str
     password: str
+    device_id: str
+
+
+class RegisterRequest(LoginRequest):
+    username: str
 
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+    device_id: str
 
 
 class TokensResponse(BaseModel):

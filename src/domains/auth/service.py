@@ -14,7 +14,7 @@ from src.domains.users.models import User
 from src.domains.users.repository import UsersRepository
 
 from .repository import SessionsRepository
-from .schemas import LoginRequest, RegisterRequest, TokensResponse
+from .schemas import LoginRequest, RegisterRequest, TokensResponse, RefreshRequest
 
 
 class AuthService:
@@ -34,11 +34,14 @@ class AuthService:
             )
 
         async with self.uow:
-            return await self._issue_token_pair(user)
+            return await self._issue_token_pair(user, device_id=payload.device_id)
 
-    async def refresh(self, refresh_token: str) -> TokensResponse:
-        refresh_hash = hash_refresh_token(refresh_token)
-        active_session = await self.sessions.get_active_by_token_hash(refresh_hash)
+    async def refresh(self, payload: RefreshRequest) -> TokensResponse:
+        refresh_hash = hash_refresh_token(payload.refresh_token)
+        active_session = await self.sessions.get_active_by_token_and_device(
+            token_hash=refresh_hash,
+            device_id=payload.device_id,
+        )
         if active_session is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -54,7 +57,9 @@ class AuthService:
 
         async with self.uow:
             await self.sessions.revoke_by_id(active_session.id)
-            return await self._issue_token_pair(user)
+            return await self._issue_token_pair(
+                user, device_id=active_session.device_id
+            )
 
     async def logout(self, refresh_token: str) -> None:
         refresh_hash = hash_refresh_token(refresh_token)
@@ -65,11 +70,11 @@ class AuthService:
         async with self.uow:
             user_by_email = await self.users_repo.get_by_email(payload.email)
             if user_by_email is not None:
-                raise HTTPException(status_code=409, detail="User already exists")
+                raise HTTPException(status_code=409, detail="Email already taken")
 
             user_by_username = await self.users_repo.get_by_username(payload.username)
             if user_by_username is not None:
-                raise HTTPException(status_code=409, detail="User already exists")
+                raise HTTPException(status_code=409, detail="Username already taken")
 
             user = await self.users_repo.create(
                 email=payload.email,
@@ -77,9 +82,9 @@ class AuthService:
                 password_hash=hash_password(payload.password),
             )
 
-            return await self._issue_token_pair(user)
+            return await self._issue_token_pair(user, device_id=payload.device_id)
 
-    async def _issue_token_pair(self, user: User) -> TokensResponse:
+    async def _issue_token_pair(self, user: User, *, device_id: str) -> TokensResponse:
         access_token, _ = create_access_token(
             user_id=str(user.id),
             config=self.config,
@@ -89,7 +94,7 @@ class AuthService:
         await self.sessions.create_session(
             user_id=user.id,
             token_hash=hash_refresh_token(refresh_token),
-            device_id="unknown",
+            device_id=device_id,
             expires_at=expire_at,
         )
 

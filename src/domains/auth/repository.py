@@ -24,10 +24,13 @@ class SessionsRepository(BaseRepository):
             is_revoked=False,
         )
 
-    async def get_active_by_token_hash(self, token_hash: str) -> Session | None:
+    async def get_active_by_token_and_device(
+        self, token_hash: str, device_id: str
+    ) -> Session | None:
         return await self._get(
             Session,
             Session.token_hash == token_hash,
+            Session.device_id == device_id,
             Session.is_revoked.is_(False),
             Session.expires_at > datetime.datetime.now(datetime.UTC),
         )
