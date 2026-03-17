@@ -116,17 +116,22 @@ class AuthService:
             await self.sessions.revoke_all_by_user_id(current_user.id)
 
     async def _issue_token_pair(self, user: User, *, device_id: str) -> TokensResponse:
-        access_token, _ = create_access_token(
+        access_token, _, access_expires_at = create_access_token(
             user_id=str(user.id),
             config=self.config,
         )
-        refresh_token, expire_at = generate_refresh_token(self.config)
+        refresh_token, refresh_expires_at = generate_refresh_token(self.config)
 
         await self.sessions.create_session(
             user_id=user.id,
             token_hash=hash_refresh_token(refresh_token),
             device_id=device_id,
-            expires_at=expire_at,
+            expires_at=refresh_expires_at,
         )
 
-        return TokensResponse(access_token=access_token, refresh_token=refresh_token)
+        return TokensResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            access_expires_at=access_expires_at,
+            refresh_expires_at=int(refresh_expires_at.timestamp()),
+        )

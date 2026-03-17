@@ -18,30 +18,31 @@ def generate_refresh_token(config: AuthConfig) -> tuple[str, datetime]:
 
     :return: (token, expire_at)
     """
-    expire_at = datetime.now(UTC) + timedelta(days=config.refresh_ttl)
+    expires_at = datetime.now(UTC) + timedelta(days=config.refresh_ttl)
 
-    return secrets.token_urlsafe(64), expire_at
+    return secrets.token_urlsafe(64), expires_at
 
 
-def create_access_token(user_id: str, config: AuthConfig) -> tuple[str, str]:
+def create_access_token(user_id: str, config: AuthConfig) -> tuple[str, str, int]:
     """
     Create JWT access token with user_id and expiration
 
-    :return: (token, jti)
+    :return: (token, jti, expires_at)
     """
-    expire_at = datetime.now(UTC) + timedelta(minutes=config.access_ttl)
+    expires_at = datetime.now(UTC) + timedelta(minutes=config.access_ttl)
+    expires_at = int(expires_at.timestamp())
     jti = str(uuid4())
     token = jwt.encode(
         {
             "sub": user_id,
-            "exp": int(expire_at.timestamp()),
+            "exp": expires_at,
             "jti": jti,  # For blacklisting if needed in future
         },
         config.jwt_secret.get_secret_value(),
         algorithm=config.jwt_algorithm,
     )
 
-    return token, jti
+    return token, jti, expires_at
 
 
 def decode_access_token(token: str, config: AuthConfig) -> str:

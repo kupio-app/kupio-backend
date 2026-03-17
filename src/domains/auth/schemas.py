@@ -23,6 +23,8 @@ class RefreshRequest(BaseModel):
 class TokensResponse(BaseModel):
     access_token: str
     refresh_token: str
+    access_expires_at: int
+    refresh_expires_at: int
     token_type: str = "bearer"
 
 
