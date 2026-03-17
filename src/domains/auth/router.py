@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Body
 
 from src.core.database.uow import UoW
 from src.core.dependencies import get_current_user, get_uow, RepositoriesDeps
@@ -45,10 +45,10 @@ async def refresh(
 
 @router.post("/logout", status_code=status.HTTP_202_ACCEPTED)
 async def logout(
-    payload: RefreshRequest,
+    refresh_token: str = Body(..., embed=True),
     service: AuthService = Depends(get_auth_service),
 ) -> None:
-    await service.logout(payload.refresh_token)
+    await service.logout(refresh_token)
 
 
 @router.get("/me", response_model=MeResponse)
