@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, status
 
 from src.core.database.uow import UoW
@@ -11,6 +13,7 @@ from .schemas import (
     RefreshRequest,
     RegisterRequest,
     TokensResponse,
+    SessionsResponse,
 )
 from .service import AuthService
 
@@ -51,6 +54,31 @@ async def logout(
 @router.get("/me", response_model=MeResponse)
 async def me(current_user: User = Depends(get_current_user)) -> MeResponse:
     return MeResponse(user=UserPrivate.model_validate(current_user))
+
+
+@router.get("/sessions", response_model=SessionsResponse)
+async def list_sessions(
+    current_user: User = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+) -> SessionsResponse:
+    return await service.list_sessions(current_user)
+
+
+@router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_session(
+    session_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+) -> None:
+    await service.revoke_session(current_user=current_user, session_id=session_id)
+
+
+@router.delete("/sessions", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_all_sessions(
+    current_user: User = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+) -> None:
+    await service.revoke_all_sessions(current_user)
 
 
 @router.post(

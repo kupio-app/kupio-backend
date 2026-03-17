@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import HTTPException, status
 
 from src.core.config import get_config
@@ -14,7 +16,14 @@ from src.domains.users.models import User
 from src.domains.users.repository import UsersRepository
 
 from .repository import SessionsRepository
-from .schemas import LoginRequest, RegisterRequest, TokensResponse, RefreshRequest
+from .schemas import (
+    LoginRequest,
+    RegisterRequest,
+    TokensResponse,
+    RefreshRequest,
+    SessionsResponse,
+    SessionInfo,
+)
 
 
 class AuthService:
@@ -83,6 +92,28 @@ class AuthService:
             )
 
             return await self._issue_token_pair(user, device_id=payload.device_id)
+
+    async def list_sessions(self, current_user: User) -> SessionsResponse:
+        sessions = await self.sessions.list_active_by_user_id(current_user.id)
+        return SessionsResponse(
+            sessions=[SessionInfo.model_validate(session) for session in sessions]
+        )
+
+    async def revoke_session(self, current_user: User, session_id: uuid.UUID) -> None:
+        async with self.uow:
+            revoked = await self.sessions.revoke_by_id_and_user_id(
+                session_id=session_id,
+                user_id=current_user.id,
+            )
+            if not revoked:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Session not found",
+                )
+
+    async def revoke_all_sessions(self, current_user: User) -> None:
+        async with self.uow:
+            await self.sessions.revoke_all_by_user_id(current_user.id)
 
     async def _issue_token_pair(self, user: User, *, device_id: str) -> TokensResponse:
         access_token, _ = create_access_token(

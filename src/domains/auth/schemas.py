@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+import datetime
+import uuid
 
 from src.domains.users.schemas import UserPrivate
 
@@ -26,3 +28,17 @@ class TokensResponse(BaseModel):
 
 class MeResponse(BaseModel):
     user: UserPrivate
+
+
+class SessionInfo(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    device_id: str
+    expires_at: datetime.datetime
+    last_used_at: datetime.datetime
+    is_revoked: bool
+
+
+class SessionsResponse(BaseModel):
+    sessions: list[SessionInfo]
