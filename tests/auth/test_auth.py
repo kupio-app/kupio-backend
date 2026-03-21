@@ -266,3 +266,305 @@ async def test_revoke_foreign_session_returns_404(client):
         headers=_auth_header(token_b),
     )
     assert revoke.status_code == 404
+
+
+async def test_register_duplicate_username_returns_409(client):
+    first = await client.post(
+        "/api/auth/register",
+        json=_register_payload(
+            email="user9a@example.com",
+            username="dup-username",
+            device_id="dup-device-username-1",
+        ),
+    )
+    assert first.status_code == 201
+
+    second = await client.post(
+        "/api/auth/register",
+        json=_register_payload(
+            email="user9b@example.com",
+            username="dup-username",
+            device_id="dup-device-username-2",
+        ),
+    )
+    assert second.status_code == 409
+
+
+async def test_register_password_too_short_returns_422(client):
+    response = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "user10@example.com",
+            "username": "user10",
+            "password": "short",  # Less than 8 characters
+            "device_id": "phone-10",
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_register_password_too_long_returns_422(client):
+    response = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "user11@example.com",
+            "username": "user11",
+            "password": "x" * 129,  # More than 128 characters
+            "device_id": "phone-11",
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_register_username_too_short_returns_422(client):
+    response = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "user12@example.com",
+            "username": "ab",  # Less than 3 characters
+            "password": "strong-password",
+            "device_id": "phone-12",
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_register_username_too_long_returns_422(client):
+    response = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "user13@example.com",
+            "username": "x" * 51,  # More than 50 characters
+            "password": "strong-password",
+            "device_id": "phone-13",
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_register_username_with_special_chars_returns_422(client):
+    response = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "user14@example.com",
+            "username": "user@special#chars!",
+            "password": "strong-password",
+            "device_id": "phone-14",
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_register_invalid_email_returns_422(client):
+    response = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "not-an-email",
+            "username": "user15",
+            "password": "strong-password",
+            "device_id": "phone-15",
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_login_nonexistent_user_returns_401(client):
+    response = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "nonexistent@example.com",
+            "password": "strong-password",
+            "device_id": "phone",
+        },
+    )
+    assert response.status_code == 401
+
+
+async def test_logout_invalidates_session(client):
+    register = await client.post(
+        "/api/auth/register",
+        json=_register_payload(
+            email="user16@example.com",
+            username="user16",
+            device_id="phone-16",
+        ),
+    )
+    refresh_token = register.json()["refresh_token"]
+
+    # Logout
+    logout = await client.post(
+        "/api/auth/logout",
+        json={"refresh_token": refresh_token},
+    )
+    assert logout.status_code == 202
+
+    # Try to refresh with the revoked token
+    refresh = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": refresh_token, "device_id": "phone-16"},
+    )
+    assert refresh.status_code == 401
+
+
+async def test_multiple_devices_same_user(client):
+    register = await client.post(
+        "/api/auth/register",
+        json=_register_payload(
+            email="user17@example.com",
+            username="user17",
+            device_id="phone-17",
+        ),
+    )
+    first_token = register.json()["access_token"]
+
+    # Login with second device
+    login_second = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "user17@example.com",
+            "password": "strong-password",
+            "device_id": "tablet-17",
+        },
+    )
+    assert login_second.status_code == 200
+    second_token = login_second.json()["access_token"]
+
+    # Login with third device
+    login_third = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "user17@example.com",
+            "password": "strong-password",
+            "device_id": "laptop-17",
+        },
+    )
+    assert login_third.status_code == 200
+
+    # Check sessions list
+    sessions = await client.get(
+        "/api/auth/sessions",
+        headers=_auth_header(first_token),
+    )
+    assert sessions.status_code == 200
+    sessions_list = sessions.json()["sessions"]
+    assert len(sessions_list) == 3
+    device_ids = {s["device_id"] for s in sessions_list}
+    assert device_ids == {"phone-17", "tablet-17", "laptop-17"}
+
+
+async def test_login_same_device_revokes_previous_session(client):
+    register = await client.post(
+        "/api/auth/register",
+        json=_register_payload(
+            email="user18@example.com",
+            username="user18",
+            device_id="phone-18",
+        ),
+    )
+    first_refresh = register.json()["refresh_token"]
+
+    # Login again with the same device
+    login_again = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "user18@example.com",
+            "password": "strong-password",
+            "device_id": "phone-18",
+        },
+    )
+    assert login_again.status_code == 200
+    second_refresh = login_again.json()["refresh_token"]
+
+    # First refresh token should be invalid now
+    refresh_old = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": first_refresh, "device_id": "phone-18"},
+    )
+    assert refresh_old.status_code == 401
+
+    # Second refresh token should work
+    refresh_new = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": second_refresh, "device_id": "phone-18"},
+    )
+    assert refresh_new.status_code == 200
+
+
+async def test_tokens_response_structure(client):
+    response = await client.post(
+        "/api/auth/register",
+        json=_register_payload(
+            email="user21@example.com",
+            username="user21",
+            device_id="phone-21",
+        ),
+    )
+    assert response.status_code == 201
+
+    body = response.json()
+    assert "access_token" in body
+    assert "refresh_token" in body
+    assert "access_expires_at" in body
+    assert "refresh_expires_at" in body
+    assert body["token_type"] == "bearer"
+    assert isinstance(body["access_expires_at"], int)
+    assert isinstance(body["refresh_expires_at"], int)
+    assert body["access_expires_at"] > 0
+    assert body["refresh_expires_at"] > 0
+
+
+async def test_malformed_auth_header_returns_401(client):
+    response = await client.get(
+        "/api/auth/me",
+        headers={"Authorization": "invalid-header"},
+    )
+    assert response.status_code == 401
+
+
+async def test_sessions_do_not_include_revoked(client):
+    register = await client.post(
+        "/api/auth/register",
+        json=_register_payload(
+            email="user23@example.com",
+            username="user23",
+            device_id="phone-23",
+        ),
+    )
+    access_token = register.json()["access_token"]
+
+    # Create a second session
+    await client.post(
+        "/api/auth/login",
+        json={
+            "email": "user23@example.com",
+            "password": "strong-password",
+            "device_id": "tablet-23",
+        },
+    )
+
+    # Get sessions and revoke one
+    sessions = await client.get(
+        "/api/auth/sessions",
+        headers=_auth_header(access_token),
+    )
+    sessions_list = sessions.json()["sessions"]
+    assert len(sessions_list) == 2
+
+    session_to_revoke = sessions_list[0]
+    revoke = await client.delete(
+        f"/api/auth/sessions/{session_to_revoke['id']}",
+        headers=_auth_header(access_token),
+    )
+    assert revoke.status_code == 204
+
+    # List sessions again
+    sessions_after = await client.get(
+        "/api/auth/sessions",
+        headers=_auth_header(access_token),
+    )
+    sessions_after_list = sessions_after.json()["sessions"]
+    assert len(sessions_after_list) == 1
+
+    # Ensure revoked session is not in the list
+    revoked_ids = [s["id"] for s in sessions_after_list]
+    assert str(session_to_revoke["id"]) not in [str(id) for id in revoked_ids]
