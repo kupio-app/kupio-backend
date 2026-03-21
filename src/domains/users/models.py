@@ -4,10 +4,11 @@ from sqlalchemy import String, Enum
 from sqlalchemy.orm import Mapped as M, mapped_column as mc
 
 from src.core.database.base_model import Base, UUID
+from src.core.database.mixins import SoftDeleteMixin
 from src.domains.users.enums import UserRole
 
 
-class User(Base):
+class User(Base, SoftDeleteMixin):
     __tablename__ = "users"
 
     id: M[UUID] = mc(primary_key=True, default=uuid.uuid4)
