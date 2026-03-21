@@ -43,6 +43,12 @@ class AuthService:
             )
 
         async with self.uow:
+            # Revoke existing session for the same device to prevent multiple active sessions on the same device
+            # Don't show error if there is active session, just revoke it and issue new tokens
+            await self.sessions.revoke_active_for_device(
+                user_id=user.id, device_id=payload.device_id
+            )
+
             return await self._issue_token_pair(user, device_id=payload.device_id)
 
     async def refresh(self, payload: RefreshRequest) -> TokensResponse:

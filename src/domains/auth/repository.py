@@ -90,6 +90,20 @@ class SessionsRepository(BaseRepository):
         await self.session.flush()
         return int(getattr(result, "rowcount", 0) or 0)
 
+    async def revoke_active_for_device(
+        self, user_id: uuid.UUID, device_id: str
+    ) -> None:
+        await self._update(
+            Session,
+            [
+                Session.user_id == user_id,
+                Session.device_id == device_id,
+                Session.is_revoked == False,
+                Session.expires_at > datetime.datetime.now(datetime.UTC),
+            ],
+            is_revoked=True,
+        )
+
     async def revoke_by_token_hash(self, token_hash: str) -> bool:
         session = await self._get(Session, Session.token_hash == token_hash)
         if session is None or session.is_revoked:
