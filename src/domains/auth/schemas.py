@@ -1,8 +1,8 @@
 import re
-
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 import datetime
 import uuid
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from src.domains.users.schemas import UserPrivate
 
