@@ -5,7 +5,7 @@ from src.core.database.uow import UoW
 from .models import User
 
 from .repository import UsersRepository
-from .schemas import UpdateUserProfile, UserPrivate
+from .schemas import UpdateUserProfile
 
 
 class UsersService:
@@ -22,7 +22,7 @@ class UsersService:
         return user
 
     async def update_profile(
-        self, current_user: UserPrivate, user_data: UpdateUserProfile
+        self, current_user: User, user_data: UpdateUserProfile
     ) -> User:
         async with self.uow:
             return await self.users_repo.update(
