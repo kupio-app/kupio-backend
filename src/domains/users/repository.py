@@ -39,3 +39,6 @@ class UsersRepository(BaseRepository):
 
     async def get_by_email(self, email: str) -> User | None:
         return await self._get(User, User.email == email)
+
+    async def update(self, user_id: uuid.UUID, **kwargs) -> User:
+        return await self._update(User, [User.id == user_id], **kwargs)
