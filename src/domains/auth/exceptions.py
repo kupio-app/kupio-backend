@@ -15,10 +15,6 @@ class InvalidRefreshTokenError(UnauthorizedError):
     detail = "Invalid or expired refresh token"
 
 
-class AuthUserNotFoundError(UnauthorizedError):
-    detail = "User not found"
-
-
 class EmailAlreadyTakenError(ConflictError):
     detail = "Email already taken"
 
