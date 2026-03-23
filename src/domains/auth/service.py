@@ -65,12 +65,6 @@ class AuthService:
             )
 
         user = await self.users_repo.get_by_id(active_session.user_id)
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
-            )
-
         async with self.uow:
             await self.sessions.revoke_by_id(active_session.id)
             return await self._issue_token_pair(
@@ -132,24 +126,19 @@ class AuthService:
             )
 
         async with self.uow:
-            db_user = await self.users_repo.get_by_id(current_user.id)
-            if db_user is None:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="User not found",
-                )
-
-            if not verify_password(payload.current_password, db_user.password_hash):
+            if not verify_password(
+                payload.current_password, current_user.password_hash
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid current password",
                 )
 
             user = await self.users_repo.update(
-                user_id=db_user.id,
+                user_id=current_user.id,
                 password_hash=hash_password(payload.new_password),
             )
-            await self.sessions.revoke_all_by_user_id(db_user.id)
+            await self.sessions.revoke_all_by_user_id(current_user.id)
 
             return await self._issue_token_pair(user, device_id=payload.device_id)
 
