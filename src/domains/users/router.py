@@ -25,5 +25,5 @@ async def me(current_user: User = Depends(get_current_user)):
 
 
 @router.get("/{username}", response_model=UserPublic)
-async def get_user(user: UserPublic = Depends(get_user_by_username)):
+async def get_user(user: User = Depends(get_user_by_username)):
     return user
