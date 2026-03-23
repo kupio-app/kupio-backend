@@ -14,6 +14,7 @@ from .schemas import (
     RegisterRequest,
     TokensResponse,
     SessionsResponse,
+    ChangePasswordRequest,
 )
 from .service import AuthService
 
@@ -79,6 +80,18 @@ async def revoke_all_sessions(
     service: AuthService = Depends(get_auth_service),
 ) -> None:
     await service.revoke_all_sessions(current_user)
+
+
+@router.post("/change-password", response_model=TokensResponse)
+async def change_password(
+    payload: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+) -> TokensResponse:
+    return await service.change_password(current_user=current_user, payload=payload)
+
+
+# TODO: /forgot-password , /reset-password
 
 
 @router.post(

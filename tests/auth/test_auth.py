@@ -568,3 +568,132 @@ async def test_sessions_do_not_include_revoked(client):
     # Ensure revoked session is not in the list
     revoked_ids = [s["id"] for s in sessions_after_list]
     assert str(session_to_revoke["id"]) not in [str(id) for id in revoked_ids]
+
+
+async def test_change_password_revokes_all_sessions_and_returns_new_session(client):
+    register = await client.post(
+        "/api/auth/register",
+        json=_register_payload(
+            email="user24@example.com",
+            username="user24",
+            device_id="phone-24",
+        ),
+    )
+    assert register.status_code == 201
+    old_access = register.json()["access_token"]
+    old_refresh_phone = register.json()["refresh_token"]
+
+    login = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "user24@example.com",
+            "password": "strong-password",
+            "device_id": "laptop-24",
+        },
+    )
+    assert login.status_code == 200
+    old_refresh_laptop = login.json()["refresh_token"]
+
+    changed = await client.post(
+        "/api/auth/change-password",
+        headers=_auth_header(old_access),
+        json={
+            "current_password": "strong-password",
+            "new_password": "new-strong-password",
+            "device_id": "password-reset-24",
+        },
+    )
+    assert changed.status_code == 200
+    new_refresh = changed.json()["refresh_token"]
+
+    refresh_old_phone = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": old_refresh_phone, "device_id": "phone-24"},
+    )
+    assert refresh_old_phone.status_code == 401
+
+    refresh_old_laptop = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": old_refresh_laptop, "device_id": "laptop-24"},
+    )
+    assert refresh_old_laptop.status_code == 401
+
+    refresh_new = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": new_refresh, "device_id": "password-reset-24"},
+    )
+    assert refresh_new.status_code == 200
+
+    login_with_old_password = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "user24@example.com",
+            "password": "strong-password",
+            "device_id": "old-password-device-24",
+        },
+    )
+    assert login_with_old_password.status_code == 401
+
+    login_with_new_password = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "user24@example.com",
+            "password": "new-strong-password",
+            "device_id": "new-password-device-24",
+        },
+    )
+    assert login_with_new_password.status_code == 200
+
+
+async def test_change_password_with_invalid_current_password_returns_401(client):
+    register = await client.post(
+        "/api/auth/register",
+        json=_register_payload(
+            email="user25@example.com",
+            username="user25",
+            device_id="phone-25",
+        ),
+    )
+    assert register.status_code == 201
+    access_token = register.json()["access_token"]
+    refresh_token = register.json()["refresh_token"]
+
+    changed = await client.post(
+        "/api/auth/change-password",
+        headers=_auth_header(access_token),
+        json={
+            "current_password": "wrong-password",
+            "new_password": "new-strong-password",
+            "device_id": "password-reset-25",
+        },
+    )
+    assert changed.status_code == 401
+
+    refresh_still_valid = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": refresh_token, "device_id": "phone-25"},
+    )
+    assert refresh_still_valid.status_code == 200
+
+
+async def test_change_password_with_same_new_password_returns_400(client):
+    register = await client.post(
+        "/api/auth/register",
+        json=_register_payload(
+            email="user26@example.com",
+            username="user26",
+            device_id="phone-26",
+        ),
+    )
+    assert register.status_code == 201
+
+    response = await client.post(
+        "/api/auth/change-password",
+        headers=_auth_header(register.json()["access_token"]),
+        json={
+            "current_password": "strong-password",
+            "new_password": "strong-password",
+            "device_id": "password-reset-26",
+        },
+    )
+    assert response.status_code == 400
