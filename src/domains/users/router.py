@@ -19,6 +19,11 @@ async def update_profile(
     return await service.update_profile(current_user, user_data)
 
 
+@router.get("/me", response_model=UserPrivate)
+async def me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
 @router.get("/{username}", response_model=UserPublic)
 async def get_user(user: UserPublic = Depends(get_user_by_username)):
     return user

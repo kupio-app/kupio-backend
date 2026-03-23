@@ -4,8 +4,6 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from src.domains.users.schemas import UserPrivate
-
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -36,10 +34,6 @@ class TokensResponse(BaseModel):
     access_expires_at: int
     refresh_expires_at: int
     token_type: str = "bearer"
-
-
-class MeResponse(BaseModel):
-    user: UserPrivate
 
 
 class SessionInfo(BaseModel):

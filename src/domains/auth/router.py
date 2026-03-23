@@ -5,11 +5,9 @@ from fastapi import APIRouter, Depends, status, Body
 from src.core.database.uow import UoW
 from src.core.dependencies import get_current_user, get_uow, RepositoriesDeps
 from src.domains.users.models import User
-from src.domains.users.schemas import UserPrivate
 
 from .schemas import (
     LoginRequest,
-    MeResponse,
     RefreshRequest,
     RegisterRequest,
     TokensResponse,
@@ -50,11 +48,6 @@ async def logout(
     service: AuthService = Depends(get_auth_service),
 ) -> None:
     await service.logout(refresh_token)
-
-
-@router.get("/me", response_model=MeResponse)
-async def me(current_user: User = Depends(get_current_user)) -> MeResponse:
-    return MeResponse(user=UserPrivate.model_validate(current_user))
 
 
 @router.get("/sessions", response_model=SessionsResponse)
