@@ -14,7 +14,6 @@ from src.domains.auth.exceptions import (
     InvalidTokenError,
     InvalidTokenPayloadError,
 )
-from src.domains.users.exceptions import UserNotFoundError
 from src.domains.users.models import User
 
 
@@ -58,7 +57,7 @@ async def get_current_user(
 
     user = await repos.users.get_by_id_str(user_id)
     if user is None:
-        raise UserNotFoundError()
+        raise InvalidTokenError()
 
     return user
 

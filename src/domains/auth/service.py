@@ -10,7 +10,6 @@ from src.core.security import (
     hash_refresh_token,
     hash_password,
 )
-from src.domains.users.exceptions import UserNotFoundError
 from src.domains.users.models import User
 from src.domains.users.repository import UsersRepository
 
@@ -67,8 +66,6 @@ class AuthService:
             raise InvalidRefreshTokenError()
 
         user = await self.users_repo.get_by_id(active_session.user_id)
-        if user is None:
-            raise UserNotFoundError()
 
         async with self.uow:
             await self.sessions.revoke_by_id(active_session.id)
