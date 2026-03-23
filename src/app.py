@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 
+from src.core.config import get_config
+from src.core.exception_handlers import register_exception_handlers
+
 from .domains.router import api_router
 from .lifetime import lifespan
-from .core.config import get_config
 
 
 def get_app() -> FastAPI:
@@ -23,5 +25,8 @@ def get_app() -> FastAPI:
         openapi_url="/api/openapi.json" if config.server.debug else None,
         lifespan=lifespan,
     )
+
+    register_exception_handlers(app)
+
     app.include_router(api_router, prefix="/api")
     return app
