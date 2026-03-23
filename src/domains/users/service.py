@@ -23,7 +23,16 @@ class UsersService:
 
     async def update_profile(
         self, current_user: User, user_data: UpdateUserProfile
-    ) -> User:
+    ) -> (
+        User
+    ):  # Here response cant be None, because we are updating existing current user
+        if user_data.phone is not None:
+            user = await self.users_repo.get_by_phone(user_data.phone)
+            if user is not None and user.id != current_user.id:
+                raise HTTPException(
+                    status_code=409, detail="User with this phone already exists"
+                )
+
         async with self.uow:
             return await self.users_repo.update(
                 user_id=current_user.id, **user_data.model_dump(exclude_unset=True)

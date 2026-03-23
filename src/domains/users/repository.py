@@ -26,6 +26,9 @@ class UsersRepository(BaseRepository):
     async def get_by_username(self, username: str) -> User | None:
         return await self._get(User, User.username == username)
 
+    async def get_by_phone(self, phone: str) -> User | None:
+        return await self._get(User, User.phone == phone)
+
     async def get_by_id(self, user_id: uuid.UUID) -> User | None:
         return await self._get(User, User.id == user_id)
 
