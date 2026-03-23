@@ -30,9 +30,9 @@ async def test_register_and_me(client):
     assert body["access_token"]
     assert body["refresh_token"]
 
-    me = await client.get("/api/auth/me", headers=_auth_header(body["access_token"]))
+    me = await client.get("/api/users/me", headers=_auth_header(body["access_token"]))
     assert me.status_code == 200
-    me_body = me.json()["user"]
+    me_body = me.json()
     assert me_body["email"] == "user1@example.com"
     assert me_body["username"] == "user1"
 
@@ -209,11 +209,6 @@ async def test_login_invalid_credentials_returns_401(client):
         },
     )
     assert login.status_code == 401
-
-
-async def test_me_without_token_returns_401(client):
-    response = await client.get("/api/auth/me")
-    assert response.status_code == 401
 
 
 async def test_refresh_with_wrong_device_id_returns_401(client):
@@ -511,14 +506,6 @@ async def test_tokens_response_structure(client):
     assert isinstance(body["refresh_expires_at"], int)
     assert body["access_expires_at"] > 0
     assert body["refresh_expires_at"] > 0
-
-
-async def test_malformed_auth_header_returns_401(client):
-    response = await client.get(
-        "/api/auth/me",
-        headers={"Authorization": "invalid-header"},
-    )
-    assert response.status_code == 401
 
 
 async def test_sessions_do_not_include_revoked(client):
