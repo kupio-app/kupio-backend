@@ -1,4 +1,4 @@
-from typing import Annotated, AsyncGenerator, Callable, Awaitable
+from typing import Annotated, AsyncGenerator, Callable, Awaitable, TypeAlias
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -33,7 +33,7 @@ async def get_uow(session: AsyncSession = Depends(get_db_session)) -> UoW:
     return UoW(session=session)
 
 
-RepositoriesDeps = Annotated[Repositories, Depends(get_repo)]
+RepositoriesDeps: TypeAlias = Annotated[Repositories, Depends(get_repo)]
 
 
 async def get_current_user(

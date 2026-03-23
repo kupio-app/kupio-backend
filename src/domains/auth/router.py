@@ -5,15 +5,14 @@ from fastapi import APIRouter, Depends, status, Body
 from src.core.database.uow import UoW
 from src.core.dependencies import get_current_user, get_uow, RepositoriesDeps
 from src.domains.users.models import User
-from src.domains.users.schemas import UserPrivate
 
 from .schemas import (
     LoginRequest,
-    MeResponse,
     RefreshRequest,
     RegisterRequest,
     TokensResponse,
     SessionsResponse,
+    ChangePasswordRequest,
 )
 from .service import AuthService
 
@@ -51,11 +50,6 @@ async def logout(
     await service.logout(refresh_token)
 
 
-@router.get("/me", response_model=MeResponse)
-async def me(current_user: User = Depends(get_current_user)) -> MeResponse:
-    return MeResponse(user=UserPrivate.model_validate(current_user))
-
-
 @router.get("/sessions", response_model=SessionsResponse)
 async def list_sessions(
     current_user: User = Depends(get_current_user),
@@ -79,6 +73,18 @@ async def revoke_all_sessions(
     service: AuthService = Depends(get_auth_service),
 ) -> None:
     await service.revoke_all_sessions(current_user)
+
+
+@router.post("/change-password", response_model=TokensResponse)
+async def change_password(
+    payload: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+) -> TokensResponse:
+    return await service.change_password(current_user=current_user, payload=payload)
+
+
+# TODO: /forgot-password , /reset-password
 
 
 @router.post(

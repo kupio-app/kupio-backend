@@ -23,6 +23,7 @@ from .schemas import (
     RefreshRequest,
     SessionsResponse,
     SessionInfo,
+    ChangePasswordRequest,
 )
 
 
@@ -35,7 +36,7 @@ class AuthService:
         self.config = get_config().auth
 
     async def login(self, payload: LoginRequest) -> TokensResponse:
-        user = await self.users_repo.get_by_email(payload.email)
+        user = await self.users_repo.get_by_email(str(payload.email))
         if user is None or not verify_password(payload.password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -64,12 +65,6 @@ class AuthService:
             )
 
         user = await self.users_repo.get_by_id(active_session.user_id)
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
-            )
-
         async with self.uow:
             await self.sessions.revoke_by_id(active_session.id)
             return await self._issue_token_pair(
@@ -83,7 +78,7 @@ class AuthService:
 
     async def register(self, payload: RegisterRequest) -> TokensResponse:
         async with self.uow:
-            user_by_email = await self.users_repo.get_by_email(payload.email)
+            user_by_email = await self.users_repo.get_by_email(str(payload.email))
             if user_by_email is not None:
                 raise HTTPException(status_code=409, detail="Email already taken")
 
@@ -92,7 +87,7 @@ class AuthService:
                 raise HTTPException(status_code=409, detail="Username already taken")
 
             user = await self.users_repo.create(
-                email=payload.email,
+                email=str(payload.email),
                 username=payload.username,
                 password_hash=hash_password(payload.password),
             )
@@ -120,6 +115,32 @@ class AuthService:
     async def revoke_all_sessions(self, current_user: User) -> None:
         async with self.uow:
             await self.sessions.revoke_all_by_user_id(current_user.id)
+
+    async def change_password(
+        self, current_user: User, payload: ChangePasswordRequest
+    ) -> TokensResponse:
+        if payload.current_password == payload.new_password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="New password must be different from current password",
+            )
+
+        async with self.uow:
+            if not verify_password(
+                payload.current_password, current_user.password_hash
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid current password",
+                )
+
+            user = await self.users_repo.update(
+                user_id=current_user.id,
+                password_hash=hash_password(payload.new_password),
+            )
+            await self.sessions.revoke_all_by_user_id(current_user.id)
+
+            return await self._issue_token_pair(user, device_id=payload.device_id)
 
     async def _issue_token_pair(self, user: User, *, device_id: str) -> TokensResponse:
         access_token, _, access_expires_at = create_access_token(

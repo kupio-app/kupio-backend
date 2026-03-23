@@ -4,8 +4,6 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from src.domains.users.schemas import UserPrivate
-
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -38,10 +36,6 @@ class TokensResponse(BaseModel):
     token_type: str = "bearer"
 
 
-class MeResponse(BaseModel):
-    user: UserPrivate
-
-
 class SessionInfo(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -54,3 +48,9 @@ class SessionInfo(BaseModel):
 
 class SessionsResponse(BaseModel):
     sessions: list[SessionInfo]
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+    device_id: str
