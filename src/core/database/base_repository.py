@@ -2,6 +2,7 @@ from typing import Any, Optional, Sequence, TypeVar, cast
 
 from sqlalchemy import ColumnExpressionArgument, delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.base import ExecutableOption
 
 from .base_model import Base
 
@@ -20,10 +21,16 @@ class BaseRepository:
         self,
         model: type[ModelType],
         *conditions: ColumnExpressionArgument[Any],
+        options: Sequence[ExecutableOption] = None,
     ) -> Optional[ModelType]:
+        if options is None:
+            options = []
+
         return cast(
             Optional[ModelType],
-            await self.session.scalar(select(model).where(*conditions)),
+            await self.session.scalar(
+                select(model).where(*conditions).options(*options)
+            ),
         )
 
     async def _get_many(
