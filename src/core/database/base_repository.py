@@ -37,9 +37,14 @@ class BaseRepository:
         self,
         model: type[ModelType],
         *conditions: ColumnExpressionArgument[Any],
+        limit: int | None = 100,
     ) -> list[ModelType]:
         return list(
-            (await self.session.scalars(select(model).where(*conditions))).unique()
+            (
+                await self.session.scalars(
+                    select(model).where(*conditions).limit(limit)
+                )
+            ).unique()
         )
 
     async def _scalars_all(self, stmt) -> list:
