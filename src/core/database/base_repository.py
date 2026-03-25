@@ -1,12 +1,15 @@
-from typing import Any, Optional, Sequence, TypeVar, cast
+import datetime
+from typing import Any, Optional, Sequence, TypeVar
 
 from sqlalchemy import ColumnExpressionArgument, delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.base import ExecutableOption
 
 from .base_model import Base
+from .mixins import SoftDeleteMixin, SoftDeletableModel
 
 ModelType = TypeVar("ModelType", bound=Base)
+SoftDeleteModelType = TypeVar("SoftDeleteModelType", bound=SoftDeletableModel)
 
 
 class BaseRepository:
@@ -26,11 +29,12 @@ class BaseRepository:
         if options is None:
             options = []
 
-        return cast(
-            Optional[ModelType],
-            await self.session.scalar(
-                select(model).where(*conditions).options(*options)
-            ),
+        all_conditions = list(conditions)
+        if issubclass(model, SoftDeleteMixin):
+            all_conditions.append(model.deleted_at.is_(None))
+
+        return await self.session.scalar(
+            select(model).where(*all_conditions).options(*options)
         )
 
     async def _get_many(
@@ -39,10 +43,14 @@ class BaseRepository:
         *conditions: ColumnExpressionArgument[Any],
         limit: int | None = 100,
     ) -> list[ModelType]:
+        all_conditions = list(conditions)
+        if issubclass(model, SoftDeleteMixin):
+            all_conditions.append(model.deleted_at.is_(None))
+
         return list(
             (
                 await self.session.scalars(
-                    select(model).where(*conditions).limit(limit)
+                    select(model).where(*all_conditions).limit(limit)
                 )
             ).unique()
         )
@@ -54,7 +62,8 @@ class BaseRepository:
         stmt = insert(model).values(**kwargs).returning(model)
         resp = await self.session.scalar(stmt)
         await self.session.flush()
-        return cast(ModelType, resp)
+
+        return resp
 
     async def _update(
         self,
@@ -67,7 +76,7 @@ class BaseRepository:
         if not kwargs:
             if not load_result:
                 return None
-            return cast(Optional[ModelType], await self._get(model, *conditions))
+            return await self._get(model, *conditions)
 
         query = update(model).where(*conditions).values(**kwargs)
         if load_result:
@@ -85,6 +94,19 @@ class BaseRepository:
             )
 
         return None
+
+    async def _soft_delete(
+        self,
+        model: type[SoftDeleteModelType],
+        *conditions: ColumnExpressionArgument[Any],
+    ) -> bool:
+        result = await self.session.execute(
+            update(model)
+            .where(*conditions, model.deleted_at.is_(None))
+            .values(deleted_at=datetime.datetime.now(datetime.UTC))
+        )
+        await self.session.flush()
+        return bool(getattr(result, "rowcount", 0) > 0)
 
     async def _delete(
         self, model: type[ModelType], *conditions: ColumnExpressionArgument[Any]
