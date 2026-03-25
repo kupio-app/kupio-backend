@@ -1,7 +1,8 @@
+import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import ColumnExpressionArgument
+from sqlalchemy import select, and_, or_, ColumnElement
 
 from src.core.database.base_repository import BaseRepository
 from .enums import ListingStatus, CurrencyEnum
@@ -37,21 +38,40 @@ class ListingsRepository(BaseRepository):
             status=status,
         )
 
-    async def list_all(
+    async def search_all(
         self,
         user_id: UUID | None = None,
         status: ListingStatus | None = None,
-        limit: int = 100,
-        offset: int = 0,
+        limit: int = 20,
+        cursor_created_at: datetime.datetime | None = None,
+        cursor_id: UUID | None = None,
     ) -> list[Listing]:
-        conditions: list[ColumnExpressionArgument[Any]] = []
+        conditions: list[ColumnElement[Any]] = [Listing.deleted_at.is_(None)]
+
         if user_id is not None:
             conditions.append(Listing.user_id == user_id)
 
         if status is not None:
             conditions.append(Listing.status == status)
 
-        return await self._get_many(Listing, *conditions)
+        if cursor_created_at is not None and cursor_id is not None:
+            conditions.append(
+                or_(
+                    Listing.created_at < cursor_created_at,
+                    and_(
+                        Listing.created_at == cursor_created_at,
+                        Listing.id < cursor_id,
+                    ),
+                )
+            )
+
+        stmt = (
+            select(Listing)
+            .where(*conditions)
+            .order_by(Listing.created_at.desc(), Listing.id.desc())
+            .limit(limit)
+        )
+        return list((await self.session.scalars(stmt)).unique())
 
     async def update_by_id(self, listing_id: UUID, **kwargs) -> Listing | None:
         return await self._update(

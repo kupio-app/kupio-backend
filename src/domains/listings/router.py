@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from src.core.dependencies import get_current_user
 from src.domains.users.models import User
@@ -21,8 +21,12 @@ router = APIRouter()
 
 
 @router.get("", response_model=ListListingsResponse)
-async def get_listings(service: ListingsService = Depends(get_listings_service)):
-    return await service.list_all_active()
+async def get_listings(
+    limit: int = Query(20, gt=0, lt=200),
+    cursor: str | None = None,
+    service: ListingsService = Depends(get_listings_service),
+):
+    return await service.list_all_active(limit=limit, cursor=cursor)
 
 
 @router.get("/{listing_id}", response_model=ListingResponse)

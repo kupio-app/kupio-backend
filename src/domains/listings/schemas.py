@@ -23,7 +23,7 @@ class ListingResponse(BaseModel):
 
 class ListListingsResponse(BaseModel):
     listings: list[ListingResponse]
-    total: int
+    next_cursor: str | None
 
 
 class ListingRequest(BaseModel):
