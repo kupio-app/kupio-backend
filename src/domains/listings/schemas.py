@@ -16,6 +16,7 @@ class ListingResponse(BaseModel):
     currency: CurrencyEnum
     status: ListingStatus
     user_id: UUID
+    category_id: int
     created_at: datetime.datetime
     updated_at: datetime.datetime | None
 
@@ -32,6 +33,7 @@ class ListingRequest(BaseModel):
     is_free: bool = False
     is_tradable: bool = False
     currency: CurrencyEnum
+    category_id: int
 
     @model_validator(mode="after")
     def check_price(self) -> "ListingRequest":

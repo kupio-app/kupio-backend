@@ -15,6 +15,7 @@ class ListingsRepository(BaseRepository):
     async def create(
         self,
         user_id: UUID,
+        category_id: int,
         title: str,
         description: str,
         price: int,
@@ -26,6 +27,7 @@ class ListingsRepository(BaseRepository):
         return await self._add(
             Listing,
             user_id=user_id,
+            category_id=category_id,
             title=title,
             description=description,
             price=price,

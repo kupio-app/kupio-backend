@@ -10,6 +10,7 @@ from src.domains.listings.enums import ListingStatus, CurrencyEnum
 
 if TYPE_CHECKING:
     from src.domains.users.models import User
+    from src.domains.categories.models import Category
 
 
 class Listing(Base, SoftDeleteMixin):
@@ -18,6 +19,8 @@ class Listing(Base, SoftDeleteMixin):
     id: M[UUID] = mc(primary_key=True, default=uuid.uuid4)
     user_id: M[UUID] = mc(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     user: M["User"] = relationship("User", lazy="joined")
+    category_id: M[Int64] = mc(ForeignKey("categories.id"), nullable=False)
+    category: M["Category"] = relationship("Category", lazy="joined")
     title: M[str] = mc(String(255))
     description: M[str]
     price: M[Int64]
