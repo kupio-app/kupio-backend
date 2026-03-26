@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 
 from .dependencies import get_categories_service, get_category_by_id
 from .models import Category
-from .schemas import CategoryResponse
+from .schemas import CategoryResponse, CategorySlim
 from .service import CategoriesService
 
 router = APIRouter()
@@ -29,7 +29,7 @@ async def get_subcategories(
     return await service.get_subcategories(category.id)
 
 
-@router.get("/{category_id}/breadcrumbs", response_model=list[CategoryResponse])
+@router.get("/{category_id}/breadcrumbs", response_model=list[CategorySlim])
 async def get_category_breadcrumbs(
     category: Category = Depends(get_category_by_id),
     service: CategoriesService = Depends(get_categories_service),

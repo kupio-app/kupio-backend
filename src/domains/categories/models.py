@@ -18,4 +18,5 @@ class Category(Base, SoftDeleteMixin):
         "Category",
         remote_side=[id],
         lazy="joined",
+        join_depth=1,
     )
