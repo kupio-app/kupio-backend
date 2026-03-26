@@ -1,7 +1,5 @@
 import uuid
 
-from fastapi import HTTPException, status
-
 from src.core.config import get_config
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
@@ -15,6 +13,15 @@ from src.core.security import (
 from src.domains.users.models import User
 from src.domains.users.repository import UsersRepository
 
+from .exceptions import (
+    EmailAlreadyTakenError,
+    InvalidCredentialsError,
+    InvalidCurrentPasswordError,
+    InvalidRefreshTokenError,
+    NewPasswordMustDifferError,
+    SessionNotFoundError,
+    UsernameAlreadyTakenError,
+)
 from .repository import SessionsRepository
 from .schemas import (
     LoginRequest,
@@ -38,10 +45,7 @@ class AuthService:
     async def login(self, payload: LoginRequest) -> TokensResponse:
         user = await self.users_repo.get_by_email(str(payload.email))
         if user is None or not verify_password(payload.password, user.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid credentials",
-            )
+            raise InvalidCredentialsError()
 
         async with self.uow:
             # Revoke existing session for the same device to prevent multiple active sessions on the same device
@@ -59,12 +63,10 @@ class AuthService:
             device_id=payload.device_id,
         )
         if active_session is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired refresh token",
-            )
+            raise InvalidRefreshTokenError()
 
         user = await self.users_repo.get_by_id(active_session.user_id)
+
         async with self.uow:
             await self.sessions.revoke_by_id(active_session.id)
             return await self._issue_token_pair(
@@ -80,11 +82,11 @@ class AuthService:
         async with self.uow:
             user_by_email = await self.users_repo.get_by_email(str(payload.email))
             if user_by_email is not None:
-                raise HTTPException(status_code=409, detail="Email already taken")
+                raise EmailAlreadyTakenError()
 
             user_by_username = await self.users_repo.get_by_username(payload.username)
             if user_by_username is not None:
-                raise HTTPException(status_code=409, detail="Username already taken")
+                raise UsernameAlreadyTakenError()
 
             user = await self.users_repo.create(
                 email=str(payload.email),
@@ -107,10 +109,7 @@ class AuthService:
                 user_id=current_user.id,
             )
             if not revoked:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Session not found",
-                )
+                raise SessionNotFoundError()
 
     async def revoke_all_sessions(self, current_user: User) -> None:
         async with self.uow:
@@ -120,19 +119,13 @@ class AuthService:
         self, current_user: User, payload: ChangePasswordRequest
     ) -> TokensResponse:
         if payload.current_password == payload.new_password:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="New password must be different from current password",
-            )
+            raise NewPasswordMustDifferError()
 
         async with self.uow:
             if not verify_password(
                 payload.current_password, current_user.password_hash
             ):
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid current password",
-                )
+                raise InvalidCurrentPasswordError()
 
             user = await self.users_repo.update(
                 user_id=current_user.id,
