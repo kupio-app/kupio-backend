@@ -52,7 +52,7 @@ async def update_listing(
     listing: Listing = Depends(get_owned_listing_by_id),
     service: ListingsService = Depends(get_listings_service),
 ):
-    return await service.update(listing.id, listing_data)
+    return await service.update_listing(listing, listing_data)
 
 
 @router.put("/{listing_id}/status", response_model=ListingResponse)

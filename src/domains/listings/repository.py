@@ -74,6 +74,10 @@ class ListingsRepository(BaseRepository):
         return list((await self.session.scalars(stmt)).unique())
 
     async def update_by_id(self, listing_id: UUID, **kwargs) -> Listing | None:
-        return await self._update(
+        result = await self._update(
             Listing, [Listing.id == listing_id], **kwargs, load_result=True
         )
+        if result is not None:
+            await self.session.refresh(result, ["category"])
+
+        return result

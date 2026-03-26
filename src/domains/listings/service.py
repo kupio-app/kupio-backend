@@ -44,11 +44,16 @@ class ListingsService:
         async with self.uow:
             return await self.listings_repo.update_by_id(listing_id, status=new_status)
 
-    async def update(self, listing_id: UUID, listing_data: ListingRequest) -> Listing:
-        await self.categories_service.get_category(listing_data.category_id)
+    async def update_listing(
+        self, listing: Listing, listing_data: ListingRequest
+    ) -> Listing:
+        if listing.category_id != listing_data.category_id:
+            # Check only if category changed
+            await self.categories_service.get_category(listing_data.category_id)
+
         async with self.uow:
             return await self.listings_repo.update_by_id(
-                listing_id,
+                listing_id=listing.id,
                 category_id=listing_data.category_id,
                 title=listing_data.title,
                 description=listing_data.description,
