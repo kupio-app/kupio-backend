@@ -1,10 +1,8 @@
-import base64
-import json
-import datetime
 from uuid import UUID
 
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
+from src.core.utils.pagination import decode_cursor, encode_cursor
 from src.domains.categories.service import CategoriesService
 from src.domains.users.models import User
 from .enums import ListingStatus
@@ -12,16 +10,6 @@ from .exceptions import ListingNotFoundError
 from .models import Listing
 from .repository import ListingsRepository
 from .schemas import ListListingsResponse, ListingResponse, ListingRequest
-
-
-def _decode_cursor(cursor: str) -> tuple[datetime.datetime, UUID]:
-    data = json.loads(base64.urlsafe_b64decode(cursor))
-    return datetime.datetime.fromisoformat(data["created_at"]), UUID(data["id"])
-
-
-def _encode_cursor(listing: Listing) -> str:
-    data = {"created_at": listing.created_at.isoformat(), "id": str(listing.id)}
-    return base64.urlsafe_b64encode(json.dumps(data).encode()).decode()
 
 
 class ListingsService:
@@ -77,9 +65,7 @@ class ListingsService:
         limit: int = 20,
         cursor: str | None = None,
     ) -> ListListingsResponse:
-        cursor_created_at, cursor_id = (
-            _decode_cursor(cursor) if cursor else (None, None)
-        )
+        cursor_created_at, cursor_id = decode_cursor(cursor) if cursor else (None, None)
         listings: list[Listing] = await self.listings_repo.search_all(
             user_id=user_id,
             status=status,
@@ -87,7 +73,11 @@ class ListingsService:
             cursor_created_at=cursor_created_at,
             cursor_id=cursor_id,
         )
-        next_cursor = _encode_cursor(listings[-1]) if len(listings) == limit else None
+        next_cursor = (
+            encode_cursor(listings[-1].created_at, listings[-1].id)
+            if len(listings) == limit
+            else None
+        )
         return ListListingsResponse(
             listings=[ListingResponse.model_validate(x) for x in listings],
             next_cursor=next_cursor,

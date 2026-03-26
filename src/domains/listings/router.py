@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 
-from src.core.dependencies import get_current_user, PaginationParams
+from src.core.dependencies import get_current_user
+from src.core.utils.pagination import PaginationParams
 from src.domains.users.models import User
 
 from .dependencies import (

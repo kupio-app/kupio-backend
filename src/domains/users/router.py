@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 
-from src.core.dependencies import get_current_user, PaginationParams
+from src.core.dependencies import get_current_user
+from src.core.utils.pagination import PaginationParams
 from src.domains.listings.dependencies import get_listings_service
 from src.domains.listings.enums import ListingStatus
 from src.domains.listings.schemas import ListListingsResponse
