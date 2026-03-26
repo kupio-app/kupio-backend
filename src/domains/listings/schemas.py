@@ -3,6 +3,7 @@ import datetime
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.domains.categories.schemas import CategoryResponse
 from src.domains.listings.enums import CurrencyEnum, ListingStatus
 
 
@@ -17,6 +18,7 @@ class ListingResponse(BaseModel):
     status: ListingStatus
     user_id: UUID
     category_id: int
+    category: CategoryResponse
     created_at: datetime.datetime
     updated_at: datetime.datetime | None
 
