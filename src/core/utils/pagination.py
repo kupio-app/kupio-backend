@@ -1,9 +1,9 @@
 import base64
 import datetime
 import json
+
 from dataclasses import dataclass
 from uuid import UUID
-
 from fastapi import Query
 
 
@@ -13,8 +13,15 @@ class PaginationParams:
     cursor: str | None = None
 
 
-def decode_cursor(cursor: str) -> tuple[datetime.datetime, UUID]:
-    data = json.loads(base64.urlsafe_b64decode(cursor))
+def decode_cursor(cursor: str) -> tuple[datetime.datetime | None, UUID | None]:
+    try:
+        data = json.loads(base64.urlsafe_b64decode(cursor))
+    except ValueError:
+        return None, None
+
+    if "created_at" not in data and "id" not in data:
+        return None, None
+
     return datetime.datetime.fromisoformat(data["created_at"]), UUID(data["id"])
 
 
