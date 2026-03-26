@@ -19,7 +19,7 @@ def decode_cursor(cursor: str) -> tuple[datetime.datetime | None, UUID | None]:
     except ValueError:
         return None, None
 
-    if "created_at" not in data and "id" not in data:
+    if "created_at" not in data or "id" not in data:
         return None, None
 
     return datetime.datetime.fromisoformat(data["created_at"]), UUID(data["id"])
