@@ -11,11 +11,21 @@ class CategoriesService:
         self.categories_repo: CategoriesRepository = repos.categories
         self.uow = uow
 
-    async def get_categories(self, depth: int | None = None) -> list[Category]:
+    async def get_categories(
+        self,
+        depth: int | None = None,
+        *,
+        limit: int,
+        offset: int = 0,
+    ) -> list[Category]:
         if depth is None:
-            return await self.categories_repo.get_all()
+            return await self.categories_repo.get_all(limit=limit, offset=offset)
 
-        return await self.categories_repo.get_by_depth(depth)
+        return await self.categories_repo.get_by_depth(
+            depth,
+            limit=limit,
+            offset=offset,
+        )
 
     async def get_category(self, category_id: int) -> Category:
         category = await self.categories_repo.get_by_id(category_id)
@@ -24,8 +34,14 @@ class CategoriesService:
 
         return category
 
-    async def get_subcategories(self, category_id: int) -> list[Category]:
-        return await self.categories_repo.get_subcategories(category_id)
+    async def get_subcategories(
+        self, category_id: int, *, limit: int, offset: int = 0
+    ) -> list[Category]:
+        return await self.categories_repo.get_subcategories(
+            category_id,
+            limit=limit,
+            offset=offset,
+        )
 
     async def get_breadcrumbs(self, category_id: int) -> list[Category]:
         return await self.categories_repo.get_breadcrumbs(category_id)

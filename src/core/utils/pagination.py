@@ -13,6 +13,12 @@ class PaginationParams:
     cursor: str | None = None
 
 
+@dataclass
+class LimitOffsetPaginationParams:
+    limit: int = Query(20, gt=0, lt=200)
+    offset: int = Query(0, ge=0)
+
+
 def decode_cursor(cursor: str) -> tuple[datetime.datetime | None, UUID | None]:
     try:
         data = json.loads(base64.urlsafe_b64decode(cursor))
