@@ -20,7 +20,7 @@ class Listing(Base, SoftDeleteMixin):
     user_id: M[UUID] = mc(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     user: M["User"] = relationship("User", lazy="joined")
     category_id: M[Int64] = mc(ForeignKey("categories.id"), nullable=False)
-    category: M["Category"] = relationship("Category", lazy="joined")
+    category: M["Category"] = relationship("Category", lazy="selectin")
     title: M[str] = mc(String(255))
     description: M[str]
     price: M[Int64]

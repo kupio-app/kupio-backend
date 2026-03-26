@@ -70,7 +70,7 @@ async def test_create_listing_sets_inactive_status(client, session_factory):
     body = await _create_listing(client, token=token, category_id=category.id)
 
     assert body["status"] == "inactive"
-    assert body["category_id"] == category.id
+    assert body["category"]["id"] == category.id
 
 
 async def test_create_listing_requires_auth(client, session_factory):
@@ -163,7 +163,7 @@ async def test_update_listing_changes_category(client, session_factory):
     )
 
     assert resp.status_code == 200
-    assert resp.json()["category_id"] == cat_b.id
+    assert resp.json()["category"]["id"] == cat_b.id
 
 
 async def test_update_listing_with_unknown_category_returns_404(
