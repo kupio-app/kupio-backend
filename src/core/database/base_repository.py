@@ -41,19 +41,19 @@ class BaseRepository:
         self,
         model: type[ModelType],
         *conditions: ColumnExpressionArgument[Any],
-        limit: int | None = 100,
+        limit: int | None = None,
+        offset: int = 0,
+        order_by: Sequence[ColumnExpressionArgument[Any]] | None = None,
     ) -> list[ModelType]:
         all_conditions = list(conditions)
         if issubclass(model, SoftDeleteMixin):
             all_conditions.append(model.deleted_at.is_(None))
 
-        return list(
-            (
-                await self.session.scalars(
-                    select(model).where(*all_conditions).limit(limit)
-                )
-            ).unique()
-        )
+        stmt = select(model).where(*all_conditions).limit(limit).offset(offset)
+        if order_by:
+            stmt = stmt.order_by(*order_by)
+
+        return list((await self.session.scalars(stmt)).unique())
 
     async def _scalars_all(self, stmt) -> list:
         return list(await self.session.scalars(stmt))
