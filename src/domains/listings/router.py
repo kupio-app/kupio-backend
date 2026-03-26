@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 
-from src.core.dependencies import get_current_user
+from src.core.dependencies import get_current_user, PaginationParams
 from src.domains.users.models import User
 
 from .dependencies import (
@@ -8,6 +8,7 @@ from .dependencies import (
     get_listings_service,
     get_owned_listing_by_id,
 )
+from .enums import ListingStatus
 from .models import Listing
 from .schemas import (
     ListingRequest,
@@ -22,11 +23,12 @@ router = APIRouter()
 
 @router.get("", response_model=ListListingsResponse)
 async def get_listings(
-    limit: int = Query(20, gt=0, lt=200),
-    cursor: str | None = None,
+    pagination: PaginationParams = Depends(),
     service: ListingsService = Depends(get_listings_service),
 ):
-    return await service.list_all_active(limit=limit, cursor=cursor)
+    return await service.list_listings(
+        status=ListingStatus.ACTIVE, limit=pagination.limit, cursor=pagination.cursor
+    )
 
 
 @router.get("/{listing_id}", response_model=ListingResponse)
@@ -43,7 +45,7 @@ async def create_listing(
     return await service.create_listing(current_user, listing_data)
 
 
-@router.put("/{listing_id}")
+@router.put("/{listing_id}", response_model=ListingResponse)
 async def update_listing(
     listing_data: ListingRequest,
     listing: Listing = Depends(get_owned_listing_by_id),

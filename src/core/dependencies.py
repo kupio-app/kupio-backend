@@ -1,6 +1,7 @@
+from dataclasses import dataclass
 from typing import Annotated, AsyncGenerator, Callable, Awaitable, TypeAlias
 
-from fastapi import Depends
+from fastapi import Depends, Query
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
@@ -39,6 +40,12 @@ async def get_uow(session: AsyncSession = Depends(get_db_session)) -> UoW:
 
 
 RepositoriesDeps: TypeAlias = Annotated[Repositories, Depends(get_repo)]
+
+
+@dataclass
+class PaginationParams:
+    limit: int = Query(20, gt=0, lt=200)
+    cursor: str | None = None
 
 
 async def get_current_user(

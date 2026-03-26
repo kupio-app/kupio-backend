@@ -70,14 +70,19 @@ class ListingsService:
                 currency=listing_data.currency,
             )
 
-    async def list_all_active(
-        self, limit: int = 20, cursor: str | None = None
+    async def list_listings(
+        self,
+        user_id: UUID | None = None,
+        status: ListingStatus | None = None,
+        limit: int = 20,
+        cursor: str | None = None,
     ) -> ListListingsResponse:
         cursor_created_at, cursor_id = (
             _decode_cursor(cursor) if cursor else (None, None)
         )
         listings: list[Listing] = await self.listings_repo.search_all(
-            status=ListingStatus.ACTIVE,
+            user_id=user_id,
+            status=status,
             limit=limit,
             cursor_created_at=cursor_created_at,
             cursor_id=cursor_id,
