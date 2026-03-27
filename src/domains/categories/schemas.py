@@ -7,6 +7,7 @@ class CategorySlim(BaseModel):
     id: int
     name: str
     depth: int
+    icon: str | None
 
 
 class CategoryResponse(CategorySlim):

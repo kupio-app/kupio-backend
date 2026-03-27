@@ -10,6 +10,7 @@ class Category(Base, SoftDeleteMixin):
 
     id: M[Int64] = mc(primary_key=True, autoincrement=True)
     name: M[str] = mc(String(255), unique=True, nullable=False)
+    icon: M[str | None] = mc(String(255), nullable=True)
     depth: M[Int16] = mc(default=0)
     parent_id: M[Int64 | None] = mc(
         ForeignKey("categories.id", ondelete="SET NULL"), nullable=True

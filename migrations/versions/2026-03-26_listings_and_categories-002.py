@@ -26,6 +26,7 @@ def upgrade() -> None:
         "categories",
         sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
         sa.Column("name", sa.String(length=255), nullable=False),
+        sa.Column("icon", sa.String(length=255), nullable=True),
         sa.Column("depth", sa.Integer(), nullable=False),
         sa.Column("parent_id", sa.BigInteger(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
