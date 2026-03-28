@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES__DB:-kupio}
+      POSTGRES_USER: ${POSTGRES__USER:-kupio}
+      POSTGRES_PASSWORD: ${POSTGRES__PASSWORD:-postgreskupio}
+    ports:
+      - "${POSTGRES__PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES__USER:-kupio} -d ${POSTGRES__DB:-kupio}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS__PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${SERVER__PORT:-9988}:9988"
+    environment:
+      SERVER__HOST: "0.0.0.0"
+      SERVER__PORT: "9988"
+      POSTGRES__HOST: db
+      REDIS__HOST: redis
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/kupio-backend/logs
+
+volumes:
+  postgres_data:
+  redis_data:
