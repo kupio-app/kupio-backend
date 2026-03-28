@@ -3,7 +3,8 @@ name = "kupio-backend"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "Vadim Popovych",email = "zyzel19@gmail.com"}
+    { name = "Vadim Popovych", email = "zyzel19@gmail.com" },
+    { name = "Yurii Oliinyk", email = "oliinykyurii123@gmail.com" }
 ]
 readme = "README.md"
 requires-python = ">=3.14"
@@ -22,6 +23,7 @@ dependencies = [
     "email-validator (>=2.3.0,<3.0.0)",
     "pydantic-extra-types (>=2.11.1,<3.0.0)",
     "phonenumbers (>=9.0.26,<10.0.0)",
+    "greenlet (>=3.3.2,<4.0.0)",
 ]
 
 
