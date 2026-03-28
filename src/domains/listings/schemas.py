@@ -1,4 +1,5 @@
 import datetime
+from typing import Any
 
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -18,6 +19,7 @@ class ListingResponse(BaseModel):
     status: ListingStatus
     user_id: UUID
     category: CategorySlim
+    custom_filters: dict[str, Any]
     created_at: datetime.datetime
     updated_at: datetime.datetime | None
 
