@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, Enum, ForeignKey, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import String, Enum, ForeignKey, UniqueConstraint, JSON
 from sqlalchemy.orm import Mapped as M, mapped_column as mc, relationship
 
 from src.core.database.base_model import Base, Int64, Int16
@@ -20,7 +19,7 @@ class FilterDefinition(Base):
         ),
     )
 
-    id: M[Int64] = mc(primary_key=True, autoincrement=True)
+    id: M[Int64] = mc(primary_key=True)
     category_id: M[Int64] = mc(
         ForeignKey("categories.id", ondelete="CASCADE"), nullable=False
     )
@@ -31,6 +30,6 @@ class FilterDefinition(Base):
     # SELECT: {"values": ["8 GB", "16 GB", "32 GB"]}
     # RANGE:  {"min": 0, "max": 128}
     # other filter types: unused (leave null)
-    options: M[dict | None] = mc(JSONB, nullable=True)
+    options: M[dict | None] = mc(JSON, nullable=True)
     is_required: M[bool] = mc(default=False)
     display_order: M[Int16] = mc(default=0)
