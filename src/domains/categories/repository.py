@@ -1,6 +1,6 @@
 from typing import Any
 
-from sqlalchemy import select, ColumnElement
+from sqlalchemy import select, literal, ColumnElement
 
 from src.core.database.base_repository import BaseRepository
 from .models import Category
@@ -41,28 +41,21 @@ class CategoriesRepository(BaseRepository):
 
     async def get_breadcrumbs(self, category_id: int) -> list[Category]:
         base = (
-            select(Category)
+            select(Category, literal(0).label("level"))
             .where(Category.id == category_id)
             .cte(name="breadcrumbs", recursive=True)
         )
 
-        recursive = select(Category).join(base, Category.id == base.c.parent_id)
+        recursive = select(Category, (base.c.level + 1).label("level")).join(
+            base, Category.id == base.c.parent_id
+        )
 
         cte = base.union_all(recursive)
 
         result = await self.session.execute(
-            select(Category).join(cte, Category.id == cte.c.id)
+            select(Category)
+            .join(cte, Category.id == cte.c.id)
+            .order_by(cte.c.level.desc())
         )
 
-        categories = result.scalars().all()
-
-        # Sort from root to current category
-        category_map: dict[int, Category] = {c.id: c for c in categories}
-
-        chain = []
-        current = category_map.get(category_id)
-        while current:
-            chain.append(current)
-            current = category_map.get(current.parent_id)
-
-        return list(reversed(chain))  # [root, ..., current]
+        return list(result.scalars().unique())
