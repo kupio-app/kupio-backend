@@ -1,6 +1,9 @@
-from fastapi import APIRouter, Depends
+import json
+
+from fastapi import APIRouter, Depends, Query
 
 from src.core.dependencies import get_current_user
+from src.core.exceptions import UnprocessableEntityError
 from src.core.utils.pagination import PaginationParams
 from src.domains.users.models import User
 
@@ -25,10 +28,27 @@ router = APIRouter()
 @router.get("", response_model=ListListingsResponse)
 async def get_listings(
     pagination: PaginationParams = Depends(),
+    category_id: int | None = Query(default=None),
+    filters: str | None = Query(
+        default=None, description='JSON object, {"ram":"16 GB"}'
+    ),
     service: ListingsService = Depends(get_listings_service),
 ):
+    custom_filters: dict | None = None
+    if filters is not None:
+        try:
+            custom_filters = json.loads(filters)
+            if not isinstance(custom_filters, dict):
+                raise ValueError
+        except json.JSONDecodeError, ValueError:
+            raise UnprocessableEntityError("filters must be a valid JSON object")
+
     return await service.list_listings(
-        status=ListingStatus.ACTIVE, limit=pagination.limit, cursor=pagination.cursor
+        status=ListingStatus.ACTIVE,
+        category_id=category_id,
+        custom_filters=custom_filters,
+        limit=pagination.limit,
+        cursor=pagination.cursor,
     )
 
 

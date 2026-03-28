@@ -84,6 +84,8 @@ class ListingsService:
         self,
         user_id: UUID | None = None,
         status: ListingStatus | None = None,
+        category_id: int | None = None,
+        custom_filters: dict | None = None,
         limit: int = 20,
         cursor: str | None = None,
     ) -> ListListingsResponse:
@@ -91,6 +93,8 @@ class ListingsService:
         listings: list[Listing] = await self.listings_repo.search_all(
             user_id=user_id,
             status=status,
+            category_id=category_id,
+            custom_filters=custom_filters,
             limit=limit,
             cursor_created_at=cursor_created_at,
             cursor_id=cursor_id,

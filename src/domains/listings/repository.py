@@ -2,7 +2,8 @@ import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, and_, or_, ColumnElement
+from sqlalchemy import select, and_, or_, cast, ColumnElement
+from sqlalchemy.dialects.postgresql import JSONB
 
 from src.core.database.base_repository import BaseRepository
 from .enums import ListingStatus, CurrencyEnum
@@ -44,6 +45,8 @@ class ListingsRepository(BaseRepository):
         self,
         user_id: UUID | None = None,
         status: ListingStatus | None = None,
+        category_id: int | None = None,
+        custom_filters: dict | None = None,
         limit: int = 20,
         cursor_created_at: datetime.datetime | None = None,
         cursor_id: UUID | None = None,
@@ -55,6 +58,14 @@ class ListingsRepository(BaseRepository):
 
         if status is not None:
             conditions.append(Listing.status == status)
+
+        if category_id is not None:
+            conditions.append(Listing.category_id == category_id)
+
+        if custom_filters:
+            conditions.append(
+                Listing.custom_filters.op("@>")(cast(custom_filters, JSONB))
+            )
 
         if cursor_created_at is not None and cursor_id is not None:
             conditions.append(
