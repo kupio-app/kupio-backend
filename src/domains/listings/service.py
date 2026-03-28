@@ -4,6 +4,7 @@ from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
 from src.core.utils.pagination import decode_cursor, encode_cursor
 from src.domains.categories.service import CategoriesService
+from src.domains.filter_definitions.service import FilterDefinitionsService
 from src.domains.users.models import User
 from .enums import ListingStatus
 from .exceptions import ListingNotFoundError
@@ -14,17 +15,25 @@ from .schemas import ListListingsResponse, ListingResponse, ListingRequest
 
 class ListingsService:
     def __init__(
-        self, repos: Repositories, uow: UoW, categories_service: CategoriesService
+        self,
+        repos: Repositories,
+        uow: UoW,
+        categories_service: CategoriesService,
+        filter_definitions_service: FilterDefinitionsService,
     ) -> None:
         self.repos = repos
         self.listings_repo: ListingsRepository = repos.listings
         self.categories_service = categories_service
+        self.filter_defs_service = filter_definitions_service
         self.uow = uow
 
     async def create_listing(
         self, current_user: User, listing_data: ListingRequest
     ) -> Listing:
         await self.categories_service.get_category(listing_data.category_id)
+        await self.filter_defs_service.validate_custom_filters(
+            listing_data.category_id, listing_data.custom_filters
+        )
         async with self.uow:
             return await self.listings_repo.create(
                 user_id=current_user.id,
@@ -36,6 +45,7 @@ class ListingsService:
                 is_tradable=listing_data.is_tradable,
                 currency=listing_data.currency,
                 status=ListingStatus.INACTIVE,
+                custom_filters=listing_data.custom_filters,
             )
 
     async def update_listing_status(
@@ -51,6 +61,12 @@ class ListingsService:
             # Check only if category changed
             await self.categories_service.get_category(listing_data.category_id)
 
+        if listing.custom_filters != listing_data.custom_filters:
+            # Check only if custom_filters changed
+            await self.filter_defs_service.validate_custom_filters(
+                listing_data.category_id, listing_data.custom_filters
+            )
+
         async with self.uow:
             return await self.listings_repo.update_by_id(
                 listing_id=listing.id,
@@ -61,6 +77,7 @@ class ListingsService:
                 is_free=listing_data.is_free,
                 is_tradable=listing_data.is_tradable,
                 currency=listing_data.currency,
+                custom_filters=listing_data.custom_filters,
             )
 
     async def list_listings(

@@ -24,6 +24,7 @@ class ListingsRepository(BaseRepository):
         is_tradable: bool,
         currency: CurrencyEnum,
         status: ListingStatus,
+        custom_filters: dict | None = None,
     ) -> Listing:
         return await self._add(
             Listing,
@@ -36,6 +37,7 @@ class ListingsRepository(BaseRepository):
             is_tradable=is_tradable,
             currency=currency,
             status=status,
+            custom_filters=custom_filters,
         )
 
     async def search_all(

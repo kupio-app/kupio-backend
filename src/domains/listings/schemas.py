@@ -19,7 +19,7 @@ class ListingResponse(BaseModel):
     status: ListingStatus
     user_id: UUID
     category: CategorySlim
-    custom_filters: dict[str, Any]
+    custom_filters: dict[str, Any] | None
     created_at: datetime.datetime
     updated_at: datetime.datetime | None
 
@@ -37,6 +37,7 @@ class ListingRequest(BaseModel):
     is_tradable: bool = False
     currency: CurrencyEnum
     category_id: int
+    custom_filters: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def check_price(self) -> "ListingRequest":
