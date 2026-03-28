@@ -19,7 +19,7 @@ class FilterDefinition(Base):
         ),
     )
 
-    id: M[Int64] = mc(primary_key=True)
+    id: M[Int64] = mc(primary_key=True, autoincrement=True)
     category_id: M[Int64] = mc(
         ForeignKey("categories.id", ondelete="CASCADE"), nullable=False
     )
