@@ -28,6 +28,9 @@ class FilterDefinition(Base):
     slug: M[str] = mc(String(100), nullable=False)
     label: M[str] = mc(String(255), nullable=False)
     filter_type: M[FilterType] = mc(Enum(FilterType), nullable=False)
+    # SELECT: {"values": ["8 GB", "16 GB", "32 GB"]}
+    # RANGE:  {"min": 0, "max": 128}
+    # other filter types: unused (leave null)
     options: M[dict | None] = mc(JSONB, nullable=True)
     is_required: M[bool] = mc(default=False)
     display_order: M[Int16] = mc(default=0)
