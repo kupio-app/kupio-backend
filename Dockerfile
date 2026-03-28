@@ -13,7 +13,7 @@ RUN set +x \
  && poetry config virtualenvs.create false \
  && rm -rf /var/lib/apt/lists/*
 
-COPY . /kupio-backend
+COPY docker /kupio-backend
 
 # Install dependencies
 RUN poetry install -n --only main --no-root

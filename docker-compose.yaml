@@ -29,7 +29,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: docker/Dockerfile
+      dockerfile: Dockerfile
     ports:
       - "${SERVER__PORT:-9988}:9988"
     environment:
