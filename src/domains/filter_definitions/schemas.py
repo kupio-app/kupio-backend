@@ -4,8 +4,18 @@ import re
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .enums import FilterType
+from .utils import validate_select_options
 
 _SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+def _validate_slug(v: str) -> str:
+    if not _SLUG_RE.match(v):
+        raise ValueError(
+            "slug must start with a lowercase letter and contain only lowercase letters, digits, and underscores"
+        )
+
+    return v
 
 
 class FilterDefinitionRequest(BaseModel):
@@ -19,21 +29,12 @@ class FilterDefinitionRequest(BaseModel):
     @field_validator("slug")
     @classmethod
     def validate_slug(cls, v: str) -> str:
-        if not _SLUG_RE.match(v):
-            raise ValueError(
-                "slug must start with a lowercase letter and contain only lowercase letters, digits, and underscores"
-            )
-
-        return v
+        return _validate_slug(v)
 
     @model_validator(mode="after")
     def validate_options(self) -> "FilterDefinitionRequest":
         if self.filter_type == FilterType.SELECT:
-            values = (self.options or {}).get("values")
-            if not values or not isinstance(values, list):
-                raise ValueError(
-                    "options.values must be a non-empty list for SELECT filter type"
-                )
+            validate_select_options(self.options)
 
         return self
 
@@ -49,12 +50,19 @@ class FilterDefinitionUpdateRequest(BaseModel):
     @field_validator("slug")
     @classmethod
     def validate_slug(cls, v: str | None) -> str | None:
-        if v is not None and not _SLUG_RE.match(v):
-            raise ValueError(
-                "slug must start with a lowercase letter and contain only lowercase letters, digits, and underscores"
-            )
+        if v is not None:
+            return _validate_slug(v)
 
         return v
+
+    @model_validator(mode="after")
+    def validate_options(self) -> "FilterDefinitionUpdateRequest":
+        # Validate only when both fields are provided together in the same request.
+        # If only one is changed, the service must verify compatibility against the DB state.
+        if self.filter_type == FilterType.SELECT and self.options is not None:
+            validate_select_options(self.options)
+
+        return self
 
 
 class FilterDefinitionResponse(BaseModel):

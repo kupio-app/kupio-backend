@@ -3,6 +3,15 @@ from src.domains.filter_definitions.exceptions import InvalidCustomFiltersError
 from src.domains.filter_definitions.models import FilterDefinition
 
 
+def validate_select_options(options: dict | None) -> None:
+    """Raises ValueError if options.values is missing or not a non-empty list."""
+    values = (options or {}).get("values")
+    if not values or not isinstance(values, list):
+        raise ValueError(
+            "options.values must be a non-empty list for SELECT filter type"
+        )
+
+
 def _validate_filter_value(
     slug: str, value: object, definition: FilterDefinition
 ) -> None:

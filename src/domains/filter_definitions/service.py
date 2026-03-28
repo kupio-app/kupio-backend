@@ -9,7 +9,7 @@ from .exceptions import (
 )
 from .models import FilterDefinition
 from .repository import FilterDefinitionsRepository
-from .utils import _validate_filter_value
+from .utils import _validate_filter_value, validate_select_options
 
 
 class FilterDefinitionsService:
@@ -69,6 +69,16 @@ class FilterDefinitionsService:
                 is not None
             ):
                 raise DuplicateFilterSlugError()
+
+        # Get filter_type and options after applying the update,
+        # then validate that SELECT always has a valid options.values
+        resolved_filter_type = kwargs.get("filter_type", definition.filter_type)
+        resolved_options = kwargs.get("options", definition.options)
+        if resolved_filter_type == FilterType.SELECT:
+            try:
+                validate_select_options(resolved_options)
+            except ValueError as e:
+                raise InvalidCustomFiltersError(str(e)) from e
 
         async with self.uow:
             return await self.repo.update_by_id(filter_id, **kwargs)
