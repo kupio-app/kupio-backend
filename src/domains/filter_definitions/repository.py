@@ -3,6 +3,7 @@ from typing import Any
 from sqlalchemy import ColumnElement
 
 from src.core.database.base_repository import BaseRepository
+from .enums import FilterType
 from .models import FilterDefinition
 
 
@@ -28,14 +29,35 @@ class FilterDefinitionsRepository(BaseRepository):
             FilterDefinition.slug == slug,
         )
 
-    async def create(self, **kwargs: Any) -> FilterDefinition:
-        return await self._add(FilterDefinition, **kwargs)
+    async def create(
+        self,
+        category_id: int,
+        slug: str,
+        label: str,
+        filter_type: FilterType,
+        options: dict | None,
+        is_required: bool,
+        display_order: int,
+    ) -> FilterDefinition:
+        return await self._add(
+            FilterDefinition,
+            category_id=category_id,
+            slug=slug,
+            label=label,
+            filter_type=filter_type,
+            options=options,
+            is_required=is_required,
+            display_order=display_order,
+        )
 
     async def update_by_id(
         self, filter_id: int, **kwargs: Any
     ) -> FilterDefinition | None:
         return await self._update(
-            FilterDefinition, [FilterDefinition.id == filter_id], **kwargs
+            FilterDefinition,
+            [FilterDefinition.id == filter_id],
+            **kwargs,
+            load_result=True,
         )
 
     async def delete_by_id(self, filter_id: int) -> bool:
