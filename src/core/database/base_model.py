@@ -13,7 +13,11 @@ UUID: TypeAlias = uuid.UUID
 
 class Base(DeclarativeBase):
     registry = registry(
-        type_annotation_map={Int16: Integer, UUID: DB_UUID, Int64: BigInteger}
+        type_annotation_map={
+            Int16: Integer,
+            UUID: DB_UUID,
+            Int64: BigInteger().with_variant(Integer, "sqlite"),
+        }
     )
 
     created_at: M[datetime.datetime] = mc(default=func.now())
