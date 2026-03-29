@@ -1,5 +1,7 @@
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
+
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
 from src.core.utils.pagination import decode_cursor, encode_cursor
@@ -31,18 +33,19 @@ class FavouritesService:
         if listing.user_id == current_user.id:
             raise CannotFavouriteOwnListingError()
 
-        existing = await self.favourites_repo.get_by_user_and_listing(
-            user_id=current_user.id,
-            listing_id=listing_id,
-        )
-        if existing is not None:
+        if await self._favourite_exists(current_user.id, listing_id):
             raise ListingAlreadyFavouritedError()
 
-        async with self.uow:
-            await self.favourites_repo.create(
-                user_id=current_user.id,
-                listing_id=listing_id,
-            )
+        try:
+            async with self.uow:
+                await self.favourites_repo.create(
+                    user_id=current_user.id,
+                    listing_id=listing_id,
+                )
+        except IntegrityError as exc:
+            if await self._favourite_exists(current_user.id, listing_id):
+                raise ListingAlreadyFavouritedError() from exc
+            raise
 
     async def remove_favourite(self, current_user: User, listing_id: UUID) -> None:
         async with self.uow:
@@ -77,3 +80,10 @@ class FavouritesService:
             listings=[ListingResponse.model_validate(x.listing) for x in favourites],
             next_cursor=next_cursor,
         )
+
+    async def _favourite_exists(self, user_id: UUID, listing_id: UUID) -> bool:
+        favourite = await self.favourites_repo.get_by_user_and_listing(
+            user_id=user_id,
+            listing_id=listing_id,
+        )
+        return favourite is not None

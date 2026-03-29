@@ -1,9 +1,16 @@
 import datetime
 import itertools
 import uuid
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
+from sqlalchemy.exc import IntegrityError
 
 from src.domains.categories.models import Category
+from src.domains.favourites.exceptions import ListingAlreadyFavouritedError
 from src.domains.favourites.models import ListingFavourite
+from src.domains.favourites.service import FavouritesService
 
 _cat_id = itertools.count(1)
 
@@ -156,6 +163,43 @@ async def test_add_favourite_duplicate_returns_409(client, session_factory):
     assert first_resp.status_code == 204
     assert second_resp.status_code == 409
     assert second_resp.json()["detail"] == "Listing is already in favourites"
+
+
+class _DummyUoW:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+
+async def test_add_favourite_translates_integrity_error_to_conflict():
+    current_user = SimpleNamespace(id=uuid.uuid4())
+    listing_id = uuid.uuid4()
+    listing = SimpleNamespace(id=listing_id, user_id=uuid.uuid4())
+    listings_repo = SimpleNamespace(get_by_id=AsyncMock(return_value=listing))
+    get_by_user_and_listing = AsyncMock(side_effect=[None, object()])
+    favourites_repo = SimpleNamespace(
+        create=AsyncMock(
+            side_effect=IntegrityError(
+                "INSERT INTO listing_favourites ...",
+                params=None,
+                orig=Exception("duplicate key value violates unique constraint"),
+            )
+        ),
+        get_by_user_and_listing=get_by_user_and_listing,
+    )
+    repos = SimpleNamespace(listings=listings_repo, favourites=favourites_repo)
+    service = FavouritesService(repos=repos, uow=_DummyUoW())
+
+    with pytest.raises(ListingAlreadyFavouritedError):
+        await service.add_favourite(current_user, listing_id)
+
+    favourites_repo.create.assert_awaited_once_with(
+        user_id=current_user.id,
+        listing_id=listing_id,
+    )
+    assert favourites_repo.get_by_user_and_listing.await_count == 2
 
 
 async def test_get_favourites_requires_auth(client):
