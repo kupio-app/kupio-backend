@@ -1,10 +1,15 @@
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
-from .exceptions import UserNotFoundError, UserPhoneConflictError
+from .exceptions import (
+    UserNotFoundError,
+    UserPhoneConflictError,
+    UserUsernameConflictError,
+    UsernameAlreadySetError,
+)
 from .models import User
 
 from .repository import UsersRepository
-from .schemas import UpdateUserProfile
+from .schemas import SetUsernameRequest, UpdateUserProfile
 
 
 class UsersService:
@@ -33,4 +38,20 @@ class UsersService:
         async with self.uow:
             return await self.users_repo.update(
                 user_id=current_user.id, **user_data.model_dump(exclude_unset=True)
+            )
+
+    async def set_username(
+        self, current_user: User, payload: SetUsernameRequest
+    ) -> User:
+        if current_user.username is not None:
+            raise UsernameAlreadySetError()
+
+        existing_user = await self.users_repo.get_by_username(payload.username)
+        if existing_user is not None and existing_user.id != current_user.id:
+            raise UserUsernameConflictError()
+
+        async with self.uow:
+            return await self.users_repo.update(
+                user_id=current_user.id,
+                username=payload.username,
             )

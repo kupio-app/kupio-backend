@@ -7,6 +7,13 @@ from pydantic_extra_types.phone_numbers import PhoneNumber
 from src.domains.users.enums import UserRole
 
 
+def validate_username_format(v: str) -> str:
+    if not re.match(r"^[a-zA-Z0-9_-]+$", v):
+        raise ValueError("Special characters are not allowed in username")
+
+    return v
+
+
 class UserPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -15,9 +22,15 @@ class UserPublic(BaseModel):
     display_name: str | None
 
 
-class UserPrivate(UserPublic):
+class UserPrivate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    username: str | None
+    display_name: str | None
     email: str
     role: UserRole
+    needs_username: bool
 
 
 class UpdateUserProfile(BaseModel):
@@ -35,3 +48,12 @@ class UpdateUserProfile(BaseModel):
             raise ValueError("No special characters allowed in names")
 
         return v.strip()
+
+
+class SetUsernameRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=50)
+
+    @field_validator("username")
+    @classmethod
+    def username_valid(cls, v: str) -> str:
+        return validate_username_format(v)
