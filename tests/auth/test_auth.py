@@ -1,5 +1,7 @@
 import uuid
 
+import src.domains.auth.service as auth_service
+
 
 def _auth_header(access_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {access_token}"}
@@ -11,6 +13,23 @@ def _register_payload(*, email: str, username: str, device_id: str) -> dict[str,
         "username": username,
         "password": "strong-password",
         "device_id": device_id,
+    }
+
+
+def _google_claims(
+    *,
+    sub: str,
+    email: str,
+    given_name: str = "Jane",
+    family_name: str = "Doe",
+) -> auth_service.GoogleIdTokenClaims:
+    return {
+        "sub": sub,
+        "email": email,
+        "email_verified": True,
+        "given_name": given_name,
+        "family_name": family_name,
+        "picture": "https://example.com/avatar.png",
     }
 
 
@@ -684,3 +703,144 @@ async def test_change_password_with_same_new_password_returns_400(client):
         },
     )
     assert response.status_code == 400
+
+
+async def test_google_login_creates_user_without_username(client, monkeypatch):
+    async def mock_verify_google_id_token(token: str, *, client_ids: list[str]):
+        assert token == "google-token-1"
+        assert client_ids == ["test-google-client-id"]
+        return _google_claims(
+            sub="google-sub-1",
+            email="google-user@example.com",
+            given_name="Google",
+            family_name="User",
+        )
+
+    monkeypatch.setattr(
+        auth_service,
+        "verify_google_id_token",
+        mock_verify_google_id_token,
+    )
+
+    response = await client.post(
+        "/api/auth/google",
+        json={"id_token": "google-token-1", "device_id": "google-phone-1"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["needs_username"] is True
+
+    me = await client.get("/api/users/me", headers=_auth_header(body["access_token"]))
+    assert me.status_code == 200
+    me_body = me.json()
+    assert me_body["email"] == "google-user@example.com"
+    assert me_body["username"] is None
+    assert me_body["needs_username"] is True
+    assert me_body["display_name"] == "Google User"
+
+
+async def test_google_login_auto_links_existing_email_user(client, monkeypatch):
+    register = await client.post(
+        "/api/auth/register",
+        json=_register_payload(
+            email="linked@example.com",
+            username="linked-user",
+            device_id="linked-phone",
+        ),
+    )
+    assert register.status_code == 201
+
+    async def mock_verify_google_id_token(token: str, *, client_ids: list[str]):
+        assert token == "google-token-2"
+        assert client_ids == ["test-google-client-id"]
+        return _google_claims(
+            sub="google-sub-2",
+            email="linked@example.com",
+        )
+
+    monkeypatch.setattr(
+        auth_service,
+        "verify_google_id_token",
+        mock_verify_google_id_token,
+    )
+
+    response = await client.post(
+        "/api/auth/google",
+        json={"id_token": "google-token-2", "device_id": "google-phone-2"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["needs_username"] is False
+
+    me = await client.get("/api/users/me", headers=_auth_header(body["access_token"]))
+    assert me.status_code == 200
+    me_body = me.json()
+    assert me_body["email"] == "linked@example.com"
+    assert me_body["username"] == "linked-user"
+    assert me_body["needs_username"] is False
+
+
+async def test_set_password_enables_password_login_for_google_user(client, monkeypatch):
+    async def mock_verify_google_id_token(token: str, *, client_ids: list[str]):
+        assert token == "google-token-3"
+        assert client_ids == ["test-google-client-id"]
+        return _google_claims(
+            sub="google-sub-3",
+            email="set-password@example.com",
+        )
+
+    monkeypatch.setattr(
+        auth_service,
+        "verify_google_id_token",
+        mock_verify_google_id_token,
+    )
+
+    google_login = await client.post(
+        "/api/auth/google",
+        json={"id_token": "google-token-3", "device_id": "google-phone-3"},
+    )
+    assert google_login.status_code == 200
+
+    set_password = await client.post(
+        "/api/auth/set-password",
+        headers=_auth_header(google_login.json()["access_token"]),
+        json={
+            "new_password": "new-strong-password",
+            "device_id": "password-device-3",
+        },
+    )
+    assert set_password.status_code == 200
+
+    login = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "set-password@example.com",
+            "password": "new-strong-password",
+            "device_id": "email-login-device-3",
+        },
+    )
+    assert login.status_code == 200
+
+
+async def test_set_password_rejects_when_password_exists(client):
+    register = await client.post(
+        "/api/auth/register",
+        json=_register_payload(
+            email="password-exists@example.com",
+            username="password-exists",
+            device_id="password-exists-device",
+        ),
+    )
+    assert register.status_code == 201
+
+    response = await client.post(
+        "/api/auth/set-password",
+        headers=_auth_header(register.json()["access_token"]),
+        json={
+            "new_password": "new-strong-password",
+            "device_id": "password-exists-device-2",
+        },
+    )
+    assert response.status_code == 409
