@@ -5,7 +5,7 @@ from sqlalchemy import select, update
 
 from src.core.database.base_repository import BaseRepository
 
-from .models import Session
+from .models import OAuthIdentity, Session
 
 
 class SessionsRepository(BaseRepository):
@@ -110,3 +110,40 @@ class SessionsRepository(BaseRepository):
             return False
 
         return await self.revoke_by_id(session.id)
+
+
+class OAuthIdentitiesRepository(BaseRepository):
+    async def create_identity(
+        self,
+        *,
+        user_id: uuid.UUID,
+        provider: str,
+        provider_sub: str,
+    ) -> OAuthIdentity:
+        return await self._add(
+            OAuthIdentity,
+            user_id=user_id,
+            provider=provider,
+            provider_sub=provider_sub,
+            last_login_at=datetime.datetime.now(datetime.UTC),
+        )
+
+    async def get_by_provider_sub(
+        self,
+        *,
+        provider: str,
+        provider_sub: str,
+    ) -> OAuthIdentity | None:
+        return await self._get(
+            OAuthIdentity,
+            OAuthIdentity.provider == provider,
+            OAuthIdentity.provider_sub == provider_sub,
+        )
+
+    async def touch_last_login(self, identity_id: uuid.UUID) -> None:
+        await self._update(
+            OAuthIdentity,
+            [OAuthIdentity.id == identity_id],
+            load_result=False,
+            last_login_at=datetime.datetime.now(datetime.UTC),
+        )

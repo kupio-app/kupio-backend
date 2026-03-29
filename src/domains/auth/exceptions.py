@@ -11,6 +11,10 @@ class InvalidCredentialsError(UnauthorizedError):
     detail = "Invalid credentials"
 
 
+class InvalidGoogleTokenError(UnauthorizedError):
+    detail = "Invalid Google token"
+
+
 class InvalidRefreshTokenError(UnauthorizedError):
     detail = "Invalid or expired refresh token"
 
@@ -33,6 +37,10 @@ class NewPasswordMustDifferError(BadRequestError):
 
 class InvalidCurrentPasswordError(UnauthorizedError):
     detail = "Invalid current password"
+
+
+class PasswordAlreadySetError(ConflictError):
+    detail = "Password is already set for this account"
 
 
 class InvalidTokenError(UnauthorizedError):

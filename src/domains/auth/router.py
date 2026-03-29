@@ -7,12 +7,14 @@ from src.core.dependencies import get_current_user, get_uow, RepositoriesDeps
 from src.domains.users.models import User
 
 from .schemas import (
+    GoogleLoginRequest,
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
-    TokensResponse,
-    SessionsResponse,
     ChangePasswordRequest,
+    SessionsResponse,
+    SetPasswordRequest,
+    TokensResponse,
 )
 from .service import AuthService
 
@@ -32,6 +34,14 @@ async def login(
     service: AuthService = Depends(get_auth_service),
 ) -> TokensResponse:
     return await service.login(payload)
+
+
+@router.post("/google", response_model=TokensResponse)
+async def google_login(
+    payload: GoogleLoginRequest,
+    service: AuthService = Depends(get_auth_service),
+) -> TokensResponse:
+    return await service.google_login(payload)
 
 
 @router.post("/refresh", response_model=TokensResponse)
@@ -82,6 +92,15 @@ async def change_password(
     service: AuthService = Depends(get_auth_service),
 ) -> TokensResponse:
     return await service.change_password(current_user=current_user, payload=payload)
+
+
+@router.post("/set-password", response_model=TokensResponse)
+async def set_password(
+    payload: SetPasswordRequest,
+    current_user: User = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+) -> TokensResponse:
+    return await service.set_password(current_user=current_user, payload=payload)
 
 
 # TODO: /forgot-password , /reset-password
