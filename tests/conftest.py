@@ -11,6 +11,9 @@ from src.core.dependencies import get_db_session
 # Ensure models are registered in SQLAlchemy metadata before create_all.
 import src.domains.auth.models  # noqa: F401
 import src.domains.users.models  # noqa: F401
+import src.domains.categories.models  # noqa: F401
+import src.domains.listings.models  # noqa: F401
+import src.domains.favourites.models  # noqa: F401
 
 
 @pytest_asyncio.fixture(scope="session")
