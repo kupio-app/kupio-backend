@@ -101,7 +101,7 @@ async def verify_google_id_token(
     if claims.get("iss") not in _GOOGLE_ISSUERS:
         raise InvalidGoogleTokenError()
 
-    if isinstance(claims["email_verified"], bool):
+    if not isinstance(claims["email_verified"], bool):
         raise InvalidGoogleTokenError()
 
     return GoogleIdTokenClaims(
