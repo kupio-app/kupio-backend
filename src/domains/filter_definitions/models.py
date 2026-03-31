@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, Enum, ForeignKey, UniqueConstraint, JSON
+from sqlalchemy import String, Enum, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped as M, mapped_column as mc, relationship
 
-from src.core.database.base_model import Base, Int64, Int16
+from src.core.database.base_model import Base, Int64, Int16, JSONDict
 from .enums import FilterType
 
 if TYPE_CHECKING:
@@ -30,6 +30,6 @@ class FilterDefinition(Base):
     # SELECT: {"values": ["8 GB", "16 GB", "32 GB"]}
     # RANGE:  {"min": 0, "max": 128}
     # other filter types: unused (leave null)
-    options: M[dict | None] = mc(JSON, nullable=True)
+    options: M[JSONDict | None]
     is_required: M[bool] = mc(default=False)
     display_order: M[Int16] = mc(default=0)

@@ -1,10 +1,10 @@
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, Enum, ForeignKey, Index, JSON
+from sqlalchemy import String, Enum, ForeignKey, Index
 from sqlalchemy.orm import Mapped as M, mapped_column as mc, relationship
 
-from src.core.database.base_model import Base, UUID, Int64
+from src.core.database.base_model import Base, UUID, Int64, JSONDict
 from src.core.database.mixins import SoftDeleteMixin
 from src.domains.listings.enums import ListingStatus, CurrencyEnum
 
@@ -32,4 +32,4 @@ class Listing(Base, SoftDeleteMixin):
     is_tradable: M[bool] = mc(default=False)
     currency: M[CurrencyEnum] = mc(Enum(CurrencyEnum))
     status: M[ListingStatus] = mc(Enum(ListingStatus))
-    custom_filters: M[dict | None] = mc(JSON, nullable=True, default=None)
+    custom_filters: M[JSONDict | None] = mc(default=None)
