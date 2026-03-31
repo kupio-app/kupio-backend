@@ -10,7 +10,7 @@ from .exceptions import (
 )
 from .models import FilterDefinition
 from .repository import FilterDefinitionsRepository
-from .utils import _validate_filter_value, validate_select_options
+from .utils import validate_filter_value, validate_select_options
 
 
 class FilterDefinitionsService:
@@ -121,4 +121,4 @@ class FilterDefinitionsService:
 
         for slug, value in custom_filters.items():
             definition = definitions_by_slug[slug]
-            _validate_filter_value(slug, value, definition)
+            validate_filter_value(slug, value, definition)

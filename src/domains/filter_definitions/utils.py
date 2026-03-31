@@ -12,7 +12,7 @@ def validate_select_options(options: dict | None) -> None:
         )
 
 
-def _validate_filter_value(
+def validate_filter_value(
     slug: str, value: object, definition: FilterDefinition
 ) -> None:
     # Validates a single filter value against its definition's type rules.
