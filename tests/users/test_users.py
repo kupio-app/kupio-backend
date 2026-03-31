@@ -1,3 +1,6 @@
+import src.domains.auth.service as auth_service
+
+
 def _auth_header(access_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {access_token}"}
 
@@ -8,6 +11,17 @@ def _register_payload(*, email: str, username: str, device_id: str) -> dict[str,
         "username": username,
         "password": "strong-password",
         "device_id": device_id,
+    }
+
+
+def _google_claims(*, sub: str, email: str) -> auth_service.GoogleIdTokenClaims:
+    return {
+        "sub": sub,
+        "email": email,
+        "email_verified": True,
+        "given_name": "Google",
+        "family_name": "User",
+        "picture": "https://example.com/avatar.png",
     }
 
 
@@ -136,3 +150,78 @@ async def test_update_profile_phone_conflict_returns_409(client):
         json={"phone": "+12025550111"},
     )
     assert set_phone_b.status_code == 409
+
+
+async def test_set_username_for_google_user(client, monkeypatch):
+    async def mock_verify_google_id_token(token: str, *, client_ids: list[str]):
+        assert token == "google-token-users-1"
+        assert client_ids == ["test-google-client-id"]
+        return _google_claims(
+            sub="google-users-sub-1",
+            email="users-google@example.com",
+        )
+
+    monkeypatch.setattr(
+        auth_service,
+        "verify_google_id_token",
+        mock_verify_google_id_token,
+    )
+
+    google_login = await client.post(
+        "/api/auth/google",
+        json={"id_token": "google-token-users-1", "device_id": "users-google-device-1"},
+    )
+    assert google_login.status_code == 200
+    access_token = google_login.json()["access_token"]
+
+    set_username = await client.patch(
+        "/api/users/me/username",
+        headers=_auth_header(access_token),
+        json={"username": "users-google"},
+    )
+    assert set_username.status_code == 200
+
+    body = set_username.json()
+    assert body["username"] == "users-google"
+    assert body["needs_username"] is False
+
+    public_user = await client.get("/api/users/users-google")
+    assert public_user.status_code == 200
+    assert public_user.json()["username"] == "users-google"
+
+
+async def test_set_username_rejects_second_change(client, monkeypatch):
+    async def mock_verify_google_id_token(token: str, *, client_ids: list[str]):
+        assert token == "google-token-users-2"
+        assert client_ids == ["test-google-client-id"]
+        return _google_claims(
+            sub="google-users-sub-2",
+            email="users-google-2@example.com",
+        )
+
+    monkeypatch.setattr(
+        auth_service,
+        "verify_google_id_token",
+        mock_verify_google_id_token,
+    )
+
+    google_login = await client.post(
+        "/api/auth/google",
+        json={"id_token": "google-token-users-2", "device_id": "users-google-device-2"},
+    )
+    assert google_login.status_code == 200
+    access_token = google_login.json()["access_token"]
+
+    first = await client.patch(
+        "/api/users/me/username",
+        headers=_auth_header(access_token),
+        json={"username": "users-google-2"},
+    )
+    assert first.status_code == 200
+
+    second = await client.patch(
+        "/api/users/me/username",
+        headers=_auth_header(access_token),
+        json={"username": "users-google-2b"},
+    )
+    assert second.status_code == 400

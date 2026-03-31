@@ -47,6 +47,7 @@ async def app(session_factory, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("REDIS__PORT", "6379")
     monkeypatch.setenv("REDIS__DB", "0")
     monkeypatch.setenv("AUTH__JWT_SECRET", "test-secret")
+    monkeypatch.setenv("AUTH__GOOGLE_CLIENT_IDS", '["test-google-client-id"]')
 
     get_config.cache_clear()
     app = get_app()

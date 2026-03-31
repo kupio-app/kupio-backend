@@ -1,8 +1,9 @@
-import re
 import datetime
 import uuid
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from src.domains.users.schemas import validate_username_format
 
 
 class LoginRequest(BaseModel):
@@ -17,10 +18,7 @@ class RegisterRequest(LoginRequest):
     @field_validator("username")
     @classmethod
     def username_valid(cls, v: str) -> str:
-        if not re.match(r"^[a-zA-Z0-9_-]+$", v):
-            raise ValueError("Special characters are not allowed in username")
-
-        return v
+        return validate_username_format(v)
 
 
 class RefreshRequest(BaseModel):
@@ -34,6 +32,7 @@ class TokensResponse(BaseModel):
     access_expires_at: int
     refresh_expires_at: int
     token_type: str = "bearer"
+    needs_username: bool = False
 
 
 class SessionInfo(BaseModel):
@@ -52,5 +51,15 @@ class SessionsResponse(BaseModel):
 
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+    device_id: str
+
+
+class GoogleLoginRequest(BaseModel):
+    id_token: str = Field(min_length=1)
+    device_id: str
+
+
+class SetPasswordRequest(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
     device_id: str

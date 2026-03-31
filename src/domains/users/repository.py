@@ -11,8 +11,10 @@ class UsersRepository(BaseRepository):
         self,
         *,
         email: str,
-        username: str,
-        password_hash: str,
+        username: str | None,
+        password_hash: str | None,
+        first_name: str | None = None,
+        last_name: str | None = None,
         role: UserRole = UserRole.USER,
     ) -> User:
         return await self._add(
@@ -20,6 +22,8 @@ class UsersRepository(BaseRepository):
             email=email,
             username=username,
             password_hash=password_hash,
+            first_name=first_name,
+            last_name=last_name,
             role=role,
         )
 

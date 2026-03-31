@@ -1,4 +1,4 @@
-from src.core.exceptions import ConflictError, NotFoundError
+from src.core.exceptions import BadRequestError, ConflictError, NotFoundError
 
 
 class UserNotFoundError(NotFoundError):
@@ -7,3 +7,11 @@ class UserNotFoundError(NotFoundError):
 
 class UserPhoneConflictError(ConflictError):
     detail = "User with this phone already exists"
+
+
+class UserUsernameConflictError(ConflictError):
+    detail = "User with this username already exists"
+
+
+class UsernameAlreadySetError(BadRequestError):
+    detail = "Username is already set"
