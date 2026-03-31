@@ -1,3 +1,5 @@
+from sqlalchemy.exc import IntegrityError
+
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
 from .exceptions import (
@@ -50,8 +52,11 @@ class UsersService:
         if existing_user is not None and existing_user.id != current_user.id:
             raise UserUsernameConflictError()
 
-        async with self.uow:
-            return await self.users_repo.update(
-                user_id=current_user.id,
-                username=payload.username,
-            )
+        try:
+            async with self.uow:
+                return await self.users_repo.update(
+                    user_id=current_user.id,
+                    username=payload.username,
+                )
+        except IntegrityError:
+            raise UserUsernameConflictError()
