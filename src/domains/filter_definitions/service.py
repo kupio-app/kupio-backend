@@ -1,6 +1,7 @@
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
 from src.domains.categories.service import CategoriesService
+from src.domains.categories.models import Category
 from .enums import FilterType
 from .exceptions import (
     DuplicateFilterSlugError,
@@ -21,10 +22,10 @@ class FilterDefinitionsService:
         self.categories_service = categories_service
 
     async def get_definitions_for_category(
-        self, category_id: int
+        self, category: Category
     ) -> list[FilterDefinition]:
-        await self.categories_service.get_category(category_id)
-        return await self.repo.get_by_category_id(category_id)
+        # Category existence checked before in router
+        return await self.repo.get_by_category_id(category.id)
 
     async def get_definition(
         self, category_id: int, filter_id: int
@@ -47,8 +48,7 @@ class FilterDefinitionsService:
         is_required: bool,
         display_order: int,
     ) -> FilterDefinition:
-        await self.categories_service.get_category(category_id)
-
+        # Category existence checked before in router
         if await self.repo.get_by_category_and_slug(category_id, slug) is not None:
             raise DuplicateFilterSlugError()
 

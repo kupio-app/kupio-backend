@@ -2,6 +2,9 @@ from fastapi import APIRouter, Depends, status
 
 from src.core.dependencies import require_roles
 from src.domains.users.enums import UserRole
+from src.domains.categories.dependencies import get_category_by_id
+from src.domains.categories.models import Category
+
 from .dependencies import get_filter_def_by_id, get_filter_def_service
 from .models import FilterDefinition
 from .schemas import (
@@ -16,23 +19,23 @@ router = APIRouter()
 
 @router.get("", response_model=list[FilterDefinitionResponse])
 async def get_filter_definitions(
-    category_id: int,
+    category: Category = Depends(get_category_by_id),  # Validate category existence
     service: FilterDefinitionsService = Depends(get_filter_def_service),
 ):
-    return await service.get_definitions_for_category(category_id)
+    return await service.get_definitions_for_category(category)
 
 
 @router.post(
     "", response_model=FilterDefinitionResponse, status_code=status.HTTP_201_CREATED
 )
 async def create_filter_definition(
-    category_id: int,
     data: FilterDefinitionRequest,
+    category: Category = Depends(get_category_by_id),  # Validate category existence
     service: FilterDefinitionsService = Depends(get_filter_def_service),
     _=Depends(require_roles(UserRole.MODERATOR)),
 ):
     return await service.create_definition(
-        category_id=category_id,
+        category_id=category.id,
         slug=data.slug,
         label=data.label,
         filter_type=data.filter_type,
