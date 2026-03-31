@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import NotRequired, TypedDict, Any
-
 import aiohttp
+
+from typing import NotRequired, TypedDict, Any
 from jose import JWTError, ExpiredSignatureError, jwt
 
 from src.domains.auth.exceptions import InvalidGoogleTokenError
