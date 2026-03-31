@@ -50,7 +50,7 @@ async def update_filter_definition(
     _=Depends(require_roles(UserRole.MODERATOR)),
 ):
     return await service.update_definition(
-        definition.id,
+        definition,
         **data.model_dump(exclude_none=True),
     )
 

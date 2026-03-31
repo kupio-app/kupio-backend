@@ -26,9 +26,15 @@ class FilterDefinitionsService:
         await self.categories_service.get_category(category_id)
         return await self.repo.get_by_category_id(category_id)
 
-    async def get_definition(self, filter_id: int) -> FilterDefinition:
+    async def get_definition(
+        self, category_id: int, filter_id: int
+    ) -> FilterDefinition:
         if (definition := await self.repo.get_by_id(filter_id)) is None:
             raise FilterDefinitionNotFoundError()
+
+        if definition.category_id != category_id:
+            raise FilterDefinitionNotFoundError()
+
         return definition
 
     async def create_definition(
@@ -57,8 +63,10 @@ class FilterDefinitionsService:
                 display_order=display_order,
             )
 
-    async def update_definition(self, filter_id: int, **kwargs) -> FilterDefinition:
-        definition = await self.get_definition(filter_id)
+    async def update_definition(
+        self, definition: FilterDefinition, **kwargs
+    ) -> FilterDefinition:
+        # Check about filter def existence already processed in router
 
         new_slug = kwargs.get("slug")
         if new_slug is not None and new_slug != definition.slug:
@@ -81,10 +89,10 @@ class FilterDefinitionsService:
                 raise InvalidCustomFiltersError(str(e)) from e
 
         async with self.uow:
-            return await self.repo.update_by_id(filter_id, **kwargs)
+            return await self.repo.update_by_id(definition.id, **kwargs)
 
     async def delete_definition(self, filter_id: int) -> None:
-        await self.get_definition(filter_id)
+        # Check about filter def existence already processed in router
         async with self.uow:
             await self.repo.delete_by_id(filter_id)
 

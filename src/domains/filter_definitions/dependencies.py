@@ -19,7 +19,12 @@ def get_filter_def_service(
 
 
 async def get_filter_def_by_id(
+    category_id: int,
     filter_id: int,
     service: FilterDefinitionsService = Depends(get_filter_def_service),
+    categories_service: CategoriesService = Depends(get_categories_service),
 ) -> FilterDefinition:
-    return await service.get_definition(filter_id)
+    category = await categories_service.get_category(
+        category_id
+    )  # Validate category existence
+    return await service.get_definition(category.id, filter_id)
