@@ -61,8 +61,11 @@ class ListingsService:
             # Check only if category changed
             await self.categories_service.get_category(listing_data.category_id)
 
-        if listing.custom_filters != listing_data.custom_filters:
-            # Check only if custom_filters changed
+        if (
+            listing.category_id != listing_data.category_id
+            or listing.custom_filters != listing_data.custom_filters
+        ):
+            # Check only if custom_filters or category changed
             await self.filter_defs_service.validate_custom_filters(
                 listing_data.category_id, listing_data.custom_filters
             )
