@@ -70,4 +70,8 @@ def downgrade() -> None:
     op.drop_column("listings", "custom_filters")
     op.drop_column("categories", "icon")
     op.drop_table("filter_definitions")
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        op.execute("DROP TYPE IF EXISTS filtertype")
+
     # ### end Alembic commands ###
