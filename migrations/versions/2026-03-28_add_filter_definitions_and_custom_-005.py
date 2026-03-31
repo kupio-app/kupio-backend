@@ -1,7 +1,7 @@
 """add filter_definitions and custom_filters
 
-Revision ID: 003
-Revises: 002
+Revision ID: 005
+Revises: 004
 Create Date: 2026-03-28 17:05:31.896321
 
 """
@@ -13,8 +13,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "003"
-down_revision: Union[str, Sequence[str], None] = "002"
+revision: str = "005"
+down_revision: Union[str, Sequence[str], None] = "004"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
