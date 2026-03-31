@@ -15,6 +15,8 @@ _GOOGLE_JWKS_DEFAULT_TTL = 3600  # defensive fallback
 
 
 class GoogleIdTokenClaims(TypedDict):
+    """Claims extracted from a verified Google ID token."""
+
     sub: str
     email: str
     email_verified: bool
@@ -24,6 +26,8 @@ class GoogleIdTokenClaims(TypedDict):
 
 
 class _GoogleJwksCache:
+    """Cache for Google's JSON Web Key Set (JWKS) to verify token signatures."""
+
     def __init__(self) -> None:
         self._keys_by_kid: dict[str, dict[str, Any]] = {}
         self._expires_at: float = 0.0
@@ -57,6 +61,12 @@ async def verify_google_id_token(
     *,
     client_ids: list[str],
 ) -> GoogleIdTokenClaims:
+    """
+    Verify a Google ID token and extract its claims.
+
+    Validates the token signature using Google's public keys, checks the audience
+    against provided client IDs, and ensures required claims are present.
+    """
     if not client_ids:
         raise InvalidGoogleTokenError()
     try:
@@ -102,6 +112,7 @@ async def verify_google_id_token(
 
 
 async def _fetch_google_jwks() -> tuple[dict[str, dict[str, Any]], int]:
+    """Fetch the latest Google JWKS and determine the cache TTL."""
     try:
         timeout = aiohttp.ClientTimeout(total=5.0)
         async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -129,6 +140,7 @@ async def _fetch_google_jwks() -> tuple[dict[str, dict[str, Any]], int]:
 
 
 def _parse_max_age(cache_control: str | None) -> int:
+    """Parse the max-age directive from a Cache-Control header."""
     if not cache_control:  # fallback
         return _GOOGLE_JWKS_DEFAULT_TTL
 
@@ -143,6 +155,7 @@ def _parse_max_age(cache_control: str | None) -> int:
 
 
 def _audience_matches(aud_claim: Any, client_ids: list[str]) -> bool:
+    """Check if the audience claim matches any of the client IDs."""
     if isinstance(aud_claim, str):
         return aud_claim in client_ids
     if isinstance(aud_claim, list):
