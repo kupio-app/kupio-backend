@@ -28,7 +28,7 @@ async def get_favourites(
     )
 
 
-@router.post("/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/{listing_id}", status_code=status.HTTP_201_CREATED)
 async def add_favourite(
     listing: Listing = Depends(get_listing_by_id),
     current_user: User = Depends(get_current_user),

@@ -101,7 +101,7 @@ async def _insert_favourite(
         await session.commit()
 
 
-async def test_add_favourite_returns_204(client, session_factory):
+async def test_add_favourite_returns_201(client, session_factory):
     category = await _create_category(session_factory, name="Electronics")
     owner_token = await _register(client, email="owner@example.com", username="owner")
     buyer_token = await _register(
@@ -114,7 +114,7 @@ async def test_add_favourite_returns_204(client, session_factory):
         headers=_auth_header(buyer_token),
     )
 
-    assert resp.status_code == 204
+    assert resp.status_code == 201
 
 
 async def test_add_favourite_unknown_listing_returns_404(client):
@@ -160,7 +160,7 @@ async def test_add_favourite_duplicate_returns_409(client, session_factory):
         headers=headers,
     )
 
-    assert first_resp.status_code == 204
+    assert first_resp.status_code == 201
     assert second_resp.status_code == 409
     assert second_resp.json()["detail"] == "Listing is already in favourites"
 
