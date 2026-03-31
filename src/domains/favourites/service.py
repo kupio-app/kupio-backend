@@ -5,10 +5,9 @@ from sqlalchemy.exc import IntegrityError
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
 from src.core.utils.pagination import decode_cursor, encode_cursor
-from src.domains.listings.exceptions import ListingNotFoundError
-from src.domains.listings.repository import ListingsRepository
 from src.domains.listings.schemas import ListListingsResponse, ListingResponse
 from src.domains.users.models import User
+from src.domains.listings.models import Listing
 
 from .exceptions import (
     CannotFavouriteOwnListingError,
@@ -21,29 +20,24 @@ from .repository import FavouritesRepository
 class FavouritesService:
     def __init__(self, repos: Repositories, uow: UoW) -> None:
         self.repos = repos
-        self.listings_repo: ListingsRepository = repos.listings
         self.favourites_repo: FavouritesRepository = repos.favourites
         self.uow = uow
 
-    async def add_favourite(self, current_user: User, listing_id: UUID) -> None:
-        listing = await self.listings_repo.get_by_id(listing_id)
-        if listing is None:
-            raise ListingNotFoundError()
-
+    async def add_favourite(self, current_user: User, listing: Listing) -> None:
         if listing.user_id == current_user.id:
             raise CannotFavouriteOwnListingError()
 
-        if await self._favourite_exists(current_user.id, listing_id):
+        if await self._favourite_exists(current_user.id, listing.id):
             raise ListingAlreadyFavouritedError()
 
         try:
             async with self.uow:
                 await self.favourites_repo.create(
                     user_id=current_user.id,
-                    listing_id=listing_id,
+                    listing_id=listing.id,
                 )
         except IntegrityError as exc:
-            if await self._favourite_exists(current_user.id, listing_id):
+            if await self._favourite_exists(current_user.id, listing.id):
                 raise ListingAlreadyFavouritedError() from exc
             raise
 

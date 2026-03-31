@@ -6,6 +6,8 @@ from src.core.dependencies import get_current_user
 from src.core.utils.pagination import PaginationParams
 from src.domains.listings.schemas import ListListingsResponse
 from src.domains.users.models import User
+from src.domains.listings.models import Listing
+from src.domains.listings.dependencies import get_listing_by_id
 
 from .dependencies import get_favourites_service
 from .service import FavouritesService
@@ -28,11 +30,11 @@ async def get_favourites(
 
 @router.post("/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def add_favourite(
-    listing_id: UUID,
+    listing: Listing = Depends(get_listing_by_id),
     current_user: User = Depends(get_current_user),
     service: FavouritesService = Depends(get_favourites_service),
 ) -> None:
-    await service.add_favourite(current_user, listing_id)
+    await service.add_favourite(current_user, listing)
 
 
 @router.delete("/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)

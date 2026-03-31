@@ -193,7 +193,7 @@ async def test_add_favourite_translates_integrity_error_to_conflict():
     service = FavouritesService(repos=repos, uow=_DummyUoW())
 
     with pytest.raises(ListingAlreadyFavouritedError):
-        await service.add_favourite(current_user, listing_id)
+        await service.add_favourite(current_user, listing)
 
     favourites_repo.create.assert_awaited_once_with(
         user_id=current_user.id,
