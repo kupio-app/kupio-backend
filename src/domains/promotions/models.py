@@ -10,6 +10,7 @@ from src.domains.promotions.enums import PromotionType, PromotionStatus
 
 if TYPE_CHECKING:
     from src.domains.listings.models import Listing
+    from src.domains.payments.models import BalanceTransaction
 
 
 class PromotionPacket(Base):
@@ -38,6 +39,10 @@ class ListingPromotion(Base):
     listing: M["Listing"] = relationship("Listing", lazy="joined")
     packet_id: M[Int64] = mc(ForeignKey("promotion_packets.id"), nullable=False)
     packet: M["PromotionPacket"] = relationship("PromotionPacket", lazy="joined")
+    transaction_id: M[UUID] = mc(ForeignKey("balance_transactions.id"), nullable=False)
+    transaction: M["BalanceTransaction"] = relationship(
+        "BalanceTransaction", lazy="joined"
+    )
     starts_at: M[datetime.datetime]
     expires_at: M[datetime.datetime]
     status: M[PromotionStatus] = mc(Enum(PromotionStatus))
