@@ -49,3 +49,20 @@ class UsersRepository(BaseRepository):
 
     async def update(self, user_id: uuid.UUID, **kwargs) -> User:
         return await self._update(User, [User.id == user_id], **kwargs)
+
+    async def deduct_balance(self, user_id: uuid.UUID, amount: int) -> bool:
+        result = await self._update(
+            User,
+            [User.id == user_id, User.balance >= amount],
+            balance=User.balance - amount,
+            load_result=True,
+        )
+        return result is not None
+
+    async def add_balance(self, user_id: uuid.UUID, amount: int) -> None:
+        await self._update(
+            User,
+            [User.id == user_id],
+            load_result=False,
+            balance=User.balance + amount,
+        )
