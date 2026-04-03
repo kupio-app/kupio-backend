@@ -11,6 +11,9 @@ from src.core.dependencies import get_db_session
 # Ensure models are registered in SQLAlchemy metadata before create_all.
 import src.domains.auth.models  # noqa: F401
 import src.domains.users.models  # noqa: F401
+import src.domains.categories.models  # noqa: F401
+import src.domains.listings.models  # noqa: F401
+import src.domains.favourites.models  # noqa: F401
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -47,6 +50,7 @@ async def app(session_factory, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("REDIS__PORT", "6379")
     monkeypatch.setenv("REDIS__DB", "0")
     monkeypatch.setenv("AUTH__JWT_SECRET", "test-secret")
+    monkeypatch.setenv("AUTH__GOOGLE_CLIENT_IDS", '["test-google-client-id"]')
 
     get_config.cache_clear()
     app = get_app()

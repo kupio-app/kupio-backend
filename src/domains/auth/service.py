@@ -4,11 +4,13 @@ from src.core.config import get_config
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
 from src.core.security import (
+    GoogleIdTokenClaims,
     create_access_token,
     generate_refresh_token,
-    verify_password,
-    hash_refresh_token,
     hash_password,
+    hash_refresh_token,
+    verify_google_id_token,
+    verify_password,
 )
 from src.domains.users.models import User
 from src.domains.users.repository import UsersRepository
@@ -16,22 +18,28 @@ from src.domains.users.repository import UsersRepository
 from .exceptions import (
     EmailAlreadyTakenError,
     InvalidCredentialsError,
+    InvalidGoogleTokenError,
     InvalidCurrentPasswordError,
     InvalidRefreshTokenError,
     NewPasswordMustDifferError,
+    PasswordAlreadySetError,
     SessionNotFoundError,
     UsernameAlreadyTakenError,
 )
-from .repository import SessionsRepository
+from .repository import OAuthIdentitiesRepository, SessionsRepository
 from .schemas import (
+    GoogleLoginRequest,
     LoginRequest,
-    RegisterRequest,
-    TokensResponse,
     RefreshRequest,
-    SessionsResponse,
-    SessionInfo,
+    RegisterRequest,
     ChangePasswordRequest,
+    SessionInfo,
+    SessionsResponse,
+    SetPasswordRequest,
+    TokensResponse,
 )
+
+_GOOGLE_PROVIDER = "google"
 
 
 class AuthService:
@@ -39,12 +47,17 @@ class AuthService:
         self.repos = repos
         self.users_repo: UsersRepository = repos.users
         self.sessions: SessionsRepository = repos.sessions
+        self.oauth_identities: OAuthIdentitiesRepository = repos.oauth_identities
         self.uow = uow
         self.config = get_config().auth
 
     async def login(self, payload: LoginRequest) -> TokensResponse:
         user = await self.users_repo.get_by_email(str(payload.email))
-        if user is None or not verify_password(payload.password, user.password_hash):
+        if (
+            user is None
+            or user.password_hash is None
+            or not verify_password(payload.password, user.password_hash)
+        ):
             raise InvalidCredentialsError()
 
         async with self.uow:
@@ -55,6 +68,26 @@ class AuthService:
             )
 
             return await self._issue_token_pair(user, device_id=payload.device_id)
+
+    async def google_login(self, payload: GoogleLoginRequest) -> TokensResponse:
+        claims = await verify_google_id_token(
+            payload.id_token,
+            client_ids=self.config.google_client_ids,
+        )
+        if not claims["email_verified"]:
+            raise InvalidGoogleTokenError("Google email must be verified")
+
+        async with self.uow:
+            user = await self._resolve_google_user(claims)
+            await self.sessions.revoke_active_for_device(
+                user_id=user.id,
+                device_id=payload.device_id,
+            )
+            return await self._issue_token_pair(
+                user,
+                device_id=payload.device_id,
+                needs_username=user.needs_username,
+            )
 
     async def refresh(self, payload: RefreshRequest) -> TokensResponse:
         refresh_hash = hash_refresh_token(payload.refresh_token)
@@ -120,6 +153,8 @@ class AuthService:
     ) -> TokensResponse:
         if payload.current_password == payload.new_password:
             raise NewPasswordMustDifferError()
+        if current_user.password_hash is None:
+            raise InvalidCurrentPasswordError()
 
         async with self.uow:
             if not verify_password(
@@ -135,7 +170,57 @@ class AuthService:
 
             return await self._issue_token_pair(user, device_id=payload.device_id)
 
-    async def _issue_token_pair(self, user: User, *, device_id: str) -> TokensResponse:
+    async def set_password(
+        self, current_user: User, payload: SetPasswordRequest
+    ) -> TokensResponse:
+        if current_user.password_hash is not None:
+            raise PasswordAlreadySetError()
+
+        async with self.uow:
+            user = await self.users_repo.update(
+                user_id=current_user.id,
+                password_hash=hash_password(payload.new_password),
+            )
+            await self.sessions.revoke_all_by_user_id(current_user.id)
+            return await self._issue_token_pair(user, device_id=payload.device_id)
+
+    async def _resolve_google_user(self, claims: GoogleIdTokenClaims) -> User:
+        identity = await self.oauth_identities.get_by_provider_sub(
+            provider=_GOOGLE_PROVIDER,
+            provider_sub=claims["sub"],
+        )
+        if identity is not None:
+            user = await self.users_repo.get_by_id(identity.user_id)
+            if user is None:
+                raise InvalidGoogleTokenError()
+            await self.oauth_identities.touch_last_login(identity.id)
+            return user
+
+        user = await self.users_repo.get_by_email(claims["email"])
+        if user is None:
+            user = await self.users_repo.create(
+                email=claims["email"],
+                username=None,
+                password_hash=None,
+                first_name=claims.get("given_name"),
+                last_name=claims.get("family_name"),
+            )
+
+        await self.oauth_identities.create_identity(
+            user_id=user.id,
+            provider=_GOOGLE_PROVIDER,
+            provider_sub=claims["sub"],
+        )
+
+        return user
+
+    async def _issue_token_pair(
+        self,
+        user: User,
+        *,
+        device_id: str,
+        needs_username: bool | None = None,
+    ) -> TokensResponse:
         access_token, _, access_expires_at = create_access_token(
             user_id=str(user.id),
             config=self.config,
@@ -154,4 +239,7 @@ class AuthService:
             refresh_token=refresh_token,
             access_expires_at=access_expires_at,
             refresh_expires_at=int(refresh_expires_at.timestamp()),
+            needs_username=(
+                user.needs_username if needs_username is None else needs_username
+            ),
         )
