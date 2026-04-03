@@ -1,8 +1,4 @@
-import itertools
-
 from src.domains.categories.models import Category
-
-_cat_id = itertools.count(1)
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -16,9 +12,7 @@ async def _create_category(
     parent_id: int | None = None,
 ) -> Category:
     async with session_factory() as session:
-        category = Category(
-            id=next(_cat_id), name=name, depth=depth, parent_id=parent_id
-        )
+        category = Category(name=name, depth=depth, parent_id=parent_id)
         session.add(category)
         await session.commit()
         await session.refresh(category)

@@ -1,19 +1,26 @@
 import datetime
 import uuid
-from typing import Annotated, TypeAlias
+from typing import Annotated, TypeAlias, Any
 
-from sqlalchemy import BigInteger, Integer, UUID as DB_UUID, func
+from sqlalchemy import BigInteger, Integer, UUID as DB_UUID, func, JSON
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, registry
 from sqlalchemy.orm import Mapped as M, mapped_column as mc
 
 Int16: TypeAlias = Annotated[int, 16]
 Int64: TypeAlias = Annotated[int, 64]
 UUID: TypeAlias = uuid.UUID
+JSONDict: TypeAlias = dict[str, Any]
 
 
 class Base(DeclarativeBase):
     registry = registry(
-        type_annotation_map={Int16: Integer, UUID: DB_UUID, Int64: BigInteger}
+        type_annotation_map={
+            Int16: Integer,
+            UUID: DB_UUID,
+            Int64: BigInteger().with_variant(Integer, "sqlite"),
+            JSONDict: JSONB().with_variant(JSON(), "sqlite"),
+        }
     )
 
     created_at: M[datetime.datetime] = mc(default=func.now())

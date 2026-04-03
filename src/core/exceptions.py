@@ -28,3 +28,7 @@ class NotFoundError(DomainError):
 
 class ConflictError(DomainError):
     status_code = status.HTTP_409_CONFLICT
+
+
+class UnprocessableEntityError(DomainError):
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY

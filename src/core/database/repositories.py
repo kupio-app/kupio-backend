@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.auth.repository import OAuthIdentitiesRepository, SessionsRepository
 from src.domains.categories.repository import CategoriesRepository
+from src.domains.filter_definitions.repository import FilterDefinitionsRepository
 from src.domains.favourites.repository import FavouritesRepository
 from src.domains.listings.repository import ListingsRepository
 from src.domains.users.repository import UsersRepository
@@ -16,6 +17,7 @@ class Repositories:
     oauth_identities: OAuthIdentitiesRepository
     listings: ListingsRepository
     categories: CategoriesRepository
+    filter_definitions: FilterDefinitionsRepository
     favourites: FavouritesRepository
 
     @classmethod
@@ -26,5 +28,6 @@ class Repositories:
             oauth_identities=OAuthIdentitiesRepository(session=session),
             listings=ListingsRepository(session=session),
             categories=CategoriesRepository(session=session),
+            filter_definitions=FilterDefinitionsRepository(session=session),
             favourites=FavouritesRepository(session=session),
         )
