@@ -17,6 +17,11 @@ class FilterDefinition(Base):
         UniqueConstraint(
             "category_id", "slug", name="uq_filter_definitions_category_slug"
         ),
+        UniqueConstraint(
+            "category_id",
+            "display_order",
+            name="uq_filter_definitions_category_display_order",
+        ),
     )
 
     id: M[Int64] = mc(primary_key=True, autoincrement=True)
