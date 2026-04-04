@@ -22,6 +22,7 @@ from .schemas import (
     ListPromotionsResponse,
     ListingPromotionResponse,
     PromotionPacketCreateRequest,
+    PromotionPacketUpdateRequest,
 )
 
 
@@ -51,9 +52,13 @@ class PromotionsService:
                 price=packet_data.price,
             )
 
-    async def update_packet(self, packet_id: int, **kwargs) -> PromotionPacket:
+    async def update_packet(
+        self, packet_id: int, packet_data: PromotionPacketUpdateRequest
+    ) -> PromotionPacket:
         async with self.uow:
-            return await self.repos.promotion_packets.update(packet_id, **kwargs)
+            return await self.repos.promotion_packets.update(
+                packet_id, **packet_data.model_dump(exclude_unset=True)
+            )
 
     async def purchase(
         self,

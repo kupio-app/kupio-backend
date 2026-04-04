@@ -43,6 +43,4 @@ async def update_packet(
     service: PromotionsService = Depends(get_promotions_service),
     _=Depends(require_roles(UserRole.MODERATOR)),
 ):
-    return await service.update_packet(
-        packet.id, **packet_data.model_dump(exclude_unset=True)
-    )
+    return await service.update_packet(packet.id, packet_data)
