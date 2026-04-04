@@ -7,6 +7,11 @@ from src.domains.categories.repository import CategoriesRepository
 from src.domains.filter_definitions.repository import FilterDefinitionsRepository
 from src.domains.favourites.repository import FavouritesRepository
 from src.domains.listings.repository import ListingsRepository
+from src.domains.payments.repository import BalanceTransactionRepository
+from src.domains.promotions.repository import (
+    ListingPromotionsRepository,
+    PromotionPacketsRepository,
+)
 from src.domains.users.repository import UsersRepository
 
 
@@ -19,6 +24,9 @@ class Repositories:
     categories: CategoriesRepository
     filter_definitions: FilterDefinitionsRepository
     favourites: FavouritesRepository
+    balance_transactions: BalanceTransactionRepository
+    promotion_packets: PromotionPacketsRepository
+    listing_promotions: ListingPromotionsRepository
 
     @classmethod
     def from_session(cls, session: AsyncSession) -> "Repositories":
@@ -30,4 +38,7 @@ class Repositories:
             categories=CategoriesRepository(session=session),
             filter_definitions=FilterDefinitionsRepository(session=session),
             favourites=FavouritesRepository(session=session),
+            balance_transactions=BalanceTransactionRepository(session=session),
+            promotion_packets=PromotionPacketsRepository(session=session),
+            listing_promotions=ListingPromotionsRepository(session=session),
         )
