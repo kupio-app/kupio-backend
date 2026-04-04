@@ -52,10 +52,6 @@ class PromotionsService:
             )
 
     async def update_packet(self, packet_id: int, **kwargs) -> PromotionPacket:
-        packet = await self.repos.promotion_packets.get_by_id(packet_id)
-        if packet is None:
-            raise PromotionPacketNotFoundError()
-
         async with self.uow:
             return await self.repos.promotion_packets.update(packet_id, **kwargs)
 
@@ -68,9 +64,7 @@ class PromotionsService:
         if listing.status != ListingStatus.ACTIVE:
             raise ListingNotPromotableError()
 
-        packet = await self.repos.promotion_packets.get_by_id(packet_id)
-        if packet is None:
-            raise PromotionPacketNotFoundError()
+        packet = await self.get_packet(packet_id)
         if not packet.is_active:
             raise PromotionPacketInactiveError()
 
