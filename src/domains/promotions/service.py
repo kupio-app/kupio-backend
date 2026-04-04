@@ -18,6 +18,7 @@ from .exceptions import (
     PromotionPacketNotFoundError,
 )
 from .models import ListingPromotion, PromotionPacket
+from .schemas import ListPromotionsResponse, ListingPromotionResponse
 
 
 class PromotionsService:
@@ -99,7 +100,7 @@ class PromotionsService:
             transaction = await self.repos.balance_transactions.create(
                 user_id=current_user.id,
                 amount=-packet.price,
-                type=TransactionType.DEBIT,
+                _type=TransactionType.DEBIT,
             )
 
             return await self.repos.listing_promotions.create(
@@ -124,15 +125,15 @@ class PromotionsService:
 
     async def list_my_promotions(
         self,
-        current_user: User,
+        current_user_id: UUID,
         *,
         limit: int,
         cursor: str | None = None,
-    ) -> tuple[list[ListingPromotion], str | None]:
+    ) -> ListPromotionsResponse:
         cursor_created_at, cursor_id = decode_cursor(cursor) if cursor else (None, None)
 
         promotions = await self.repos.listing_promotions.get_by_user(
-            current_user.id,
+            current_user_id,
             limit=limit,
             cursor_created_at=cursor_created_at,
             cursor_id=cursor_id,
@@ -144,7 +145,10 @@ class PromotionsService:
             else None
         )
 
-        return promotions, next_cursor
+        return ListPromotionsResponse(
+            promotions=[ListingPromotionResponse.model_validate(x) for x in promotions],
+            next_cursor=next_cursor,
+        )
 
     async def get_promotion(self, promotion_id: UUID) -> ListingPromotion:
         promotion = await self.repos.listing_promotions.get_by_id(promotion_id)
