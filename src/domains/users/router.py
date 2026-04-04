@@ -6,6 +6,9 @@ from src.domains.listings.dependencies import get_listings_service
 from src.domains.listings.enums import ListingStatus
 from src.domains.listings.schemas import ListListingsResponse
 from src.domains.listings.service import ListingsService
+from src.domains.promotions.dependencies import get_promotions_service
+from src.domains.promotions.schemas import ListPromotionsResponse
+from src.domains.promotions.service import PromotionsService
 
 from .dependencies import get_users_service, get_user_by_username
 from .models import User
@@ -36,6 +39,19 @@ async def set_username(
 @router.get("/me", response_model=UserPrivate)
 async def me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.get("/me/promotions", response_model=ListPromotionsResponse)
+async def get_my_promotions(
+    pagination: PaginationParams = Depends(),
+    current_user: User = Depends(get_current_user),
+    service: PromotionsService = Depends(get_promotions_service),
+):
+    return await service.list_my_promotions(
+        current_user.id,
+        limit=pagination.limit,
+        cursor=pagination.cursor,
+    )
 
 
 @router.get("/me/listings", response_model=ListListingsResponse)
