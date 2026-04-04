@@ -5,11 +5,11 @@ from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
 from src.core.utils.pagination import decode_cursor, encode_cursor
 from src.domains.listings.enums import ListingStatus
-from src.domains.listings.exceptions import ListingNotFoundError, ListingOwnershipError
+from src.domains.listings.models import Listing
 from src.domains.payments.enums import TransactionType
 from src.domains.payments.exceptions import InsufficientBalanceError
 from src.domains.users.models import User
-from .enums import PromotionStatus, PromotionType
+from .enums import PromotionStatus
 from .exceptions import (
     DuplicateActivePromotionError,
     ListingNotPromotableError,
@@ -18,7 +18,11 @@ from .exceptions import (
     PromotionPacketNotFoundError,
 )
 from .models import ListingPromotion, PromotionPacket
-from .schemas import ListPromotionsResponse, ListingPromotionResponse
+from .schemas import (
+    ListPromotionsResponse,
+    ListingPromotionResponse,
+    PromotionPacketCreateRequest,
+)
 
 
 class PromotionsService:
@@ -36,21 +40,15 @@ class PromotionsService:
         return packet
 
     async def create_packet(
-        self,
-        *,
-        name: str,
-        description: str | None,
-        _type: PromotionType,
-        duration_days: int,
-        price: int,
+        self, packet_data: PromotionPacketCreateRequest
     ) -> PromotionPacket:
         async with self.uow:
             return await self.repos.promotion_packets.create(
-                name=name,
-                description=description,
-                _type=_type,
-                duration_days=duration_days,
-                price=price,
+                name=packet_data.name,
+                description=packet_data.description,
+                _type=packet_data.type,
+                duration_days=packet_data.duration_days,
+                price=packet_data.price,
             )
 
     async def update_packet(self, packet_id: int, **kwargs) -> PromotionPacket:
@@ -64,14 +62,9 @@ class PromotionsService:
     async def purchase(
         self,
         current_user: User,
-        listing_id: UUID,
+        listing: Listing,
         packet_id: int,
     ) -> ListingPromotion:
-        listing = await self.repos.listings.get_by_id(listing_id)
-        if listing is None:
-            raise ListingNotFoundError()
-        if listing.user_id != current_user.id:
-            raise ListingOwnershipError()
         if listing.status != ListingStatus.ACTIVE:
             raise ListingNotPromotableError()
 
@@ -82,7 +75,7 @@ class PromotionsService:
             raise PromotionPacketInactiveError()
 
         existing = await self.repos.listing_promotions.get_active_by_listing_and_type(
-            listing_id, packet.type
+            listing.id, packet.type
         )
         if existing is not None:
             raise DuplicateActivePromotionError()
@@ -104,7 +97,7 @@ class PromotionsService:
             )
 
             return await self.repos.listing_promotions.create(
-                listing_id=listing_id,
+                listing_id=listing.id,
                 packet_id=packet_id,
                 transaction_id=transaction.id,
                 starts_at=now,
@@ -112,16 +105,8 @@ class PromotionsService:
                 status=PromotionStatus.ACTIVE,
             )
 
-    async def list_for_listing(
-        self, current_user: User, listing_id: UUID
-    ) -> list[ListingPromotion]:
-        listing = await self.repos.listings.get_by_id(listing_id)
-        if listing is None:
-            raise ListingNotFoundError()
-        if listing.user_id != current_user.id:
-            raise ListingOwnershipError()
-
-        return await self.repos.listing_promotions.get_active_for_listing(listing_id)
+    async def list_for_listing(self, listing: Listing) -> list[ListingPromotion]:
+        return await self.repos.listing_promotions.get_active_for_listing(listing.id)
 
     async def list_my_promotions(
         self,
