@@ -5,6 +5,11 @@ from .categories.router import router as categories_router
 from .filter_definitions.router import router as filter_definitions_router
 from .favourites.router import router as favourites_router
 from .listings.router import router as listings_router
+from .payments.router import router as payments_router
+from src.domains.promotions.router import (
+    promotion_packets_router,
+    listing_promotions_router,
+)
 from .users.router import router as users_router
 
 api_router = APIRouter()
@@ -21,4 +26,15 @@ api_router.include_router(
     tags=["Favourites"],
     prefix="/listings/favourites",
 )
+api_router.include_router(
+    listing_promotions_router,
+    tags=["Listing Promotions"],
+    prefix="/listings/promotions",
+)
 api_router.include_router(listings_router, tags=["Listings"], prefix="/listings")
+api_router.include_router(payments_router, tags=["Payments"], prefix="/payments")
+api_router.include_router(
+    promotion_packets_router,
+    tags=["Promotion Packets"],
+    prefix="/promotions/packets",
+)
