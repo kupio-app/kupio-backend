@@ -46,6 +46,21 @@ services:
         condition: service_healthy
     volumes:
       - ./logs:/kupio-backend/logs
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["streaq", "run", "src.worker:worker"]
+    environment:
+      POSTGRES__HOST: db
+      REDIS__HOST: redis
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   postgres_data:
