@@ -20,6 +20,11 @@ class CategoriesRepository(BaseRepository):
             depth=depth,
         )
 
+    async def update(self, category_id: int, **kwargs) -> Category:
+        return await self._update(
+            Category, [Category.id == category_id], **kwargs, load_result=True
+        )
+
     async def get_by_id(self, category_id: int) -> Category | None:
         return await self._get(Category, Category.id == category_id)
 

@@ -6,7 +6,12 @@ from src.domains.users.enums import UserRole
 
 from .dependencies import get_categories_service, get_category_by_id
 from .models import Category
-from .schemas import CategoryResponse, CategorySlim, CategoryRequestCreate
+from .schemas import (
+    CategoryResponse,
+    CategorySlim,
+    CategoryRequestCreate,
+    CategoryRequestUpdate,
+)
 from .service import CategoriesService
 
 router = APIRouter()
@@ -19,6 +24,16 @@ async def create_category(
     _=Depends(require_roles(UserRole.MODERATOR)),
 ):
     return await service.create_category(category_data)
+
+
+@router.patch("/{category_id}", response_model=CategoryResponse)
+async def update_category(
+    category_data: CategoryRequestUpdate,
+    category: Category = Depends(get_category_by_id),
+    service: CategoriesService = Depends(get_categories_service),
+    _=Depends(require_roles(UserRole.MODERATOR)),
+):
+    return await service.update_category(category_data, category)
 
 
 @router.get("", response_model=list[CategoryResponse])
