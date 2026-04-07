@@ -55,6 +55,22 @@ class CategoriesRepository(BaseRepository):
             order_by=self._SORTING_BY,
         )
 
+    async def get_ancestor_ids(self, category_id: int) -> set[int]:
+        base = (
+            select(Category.id, Category.parent_id)
+            .where(Category.id == category_id)
+            .cte(name="ancestors", recursive=True)
+        )
+
+        recursive = select(Category.id, Category.parent_id).join(
+            base, Category.id == base.c.parent_id
+        )
+
+        cte = base.union_all(recursive)
+
+        result = await self.session.execute(select(cte.c.id))
+        return set(result.scalars().all())
+
     async def get_breadcrumbs(self, category_id: int) -> list[Category]:
         base = (
             select(Category, literal(0).label("level"))

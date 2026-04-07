@@ -1,6 +1,10 @@
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
-from .exceptions import CategoryNotFoundError, InvalidParentProvided
+from .exceptions import (
+    CategoryNotFoundError,
+    InvalidParentProvided,
+    CircularCategoryReferenceError,
+)
 from .repository import CategoriesRepository
 from .models import Category
 from .schemas import CategoryRequestCreate, CategoryRequestUpdate
@@ -44,6 +48,16 @@ class CategoriesService:
     ) -> Category:
         depth = category.depth
         if category_data.parent_id != category.parent_id:
+            if category_data.parent_id is not None:
+                if category_data.parent_id == category.id:
+                    raise CircularCategoryReferenceError()
+
+                ancestor_ids = await self.categories_repo.get_ancestor_ids(
+                    category_data.parent_id
+                )
+                if category.id in ancestor_ids:
+                    raise CircularCategoryReferenceError()
+
             parent_category = await self._check_parent(category_data.parent_id)
             depth = 0 if parent_category is None else parent_category.depth + 1
 
