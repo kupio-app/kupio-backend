@@ -54,7 +54,7 @@ class ListingPromotionsRepository(BaseRepository):
         expires_at: datetime.datetime,
         status: PromotionStatus,
     ) -> ListingPromotion:
-        return await self._add(
+        result = await self._add(
             ListingPromotion,
             listing_id=listing_id,
             packet_id=packet_id,
@@ -63,6 +63,10 @@ class ListingPromotionsRepository(BaseRepository):
             expires_at=expires_at,
             status=status,
         )
+        await self.session.refresh(
+            result, attribute_names=["packet", "listing", "transaction"]
+        )
+        return result
 
     async def get_by_id(self, promotion_id: UUID) -> ListingPromotion | None:
         return await self._get(ListingPromotion, ListingPromotion.id == promotion_id)
