@@ -2,7 +2,7 @@ import datetime
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum, ForeignKey, Index, String
+from sqlalchemy import Enum, ForeignKey, Index, String, DateTime
 from sqlalchemy.orm import Mapped as M, mapped_column as mc, relationship
 
 from src.core.database.base_model import Base, UUID, Int64
@@ -43,6 +43,6 @@ class ListingPromotion(Base):
     transaction: M["BalanceTransaction"] = relationship(
         "BalanceTransaction", lazy="joined"
     )
-    starts_at: M[datetime.datetime]
-    expires_at: M[datetime.datetime]
+    starts_at: M[datetime.datetime] = mc(DateTime(timezone=True))
+    expires_at: M[datetime.datetime] = mc(DateTime(timezone=True))
     status: M[PromotionStatus] = mc(Enum(PromotionStatus))

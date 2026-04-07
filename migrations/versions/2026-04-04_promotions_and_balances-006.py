@@ -83,8 +83,8 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("transaction_id", sa.UUID(), nullable=False),
-        sa.Column("starts_at", sa.DateTime(), nullable=False),
-        sa.Column("expires_at", sa.DateTime(), nullable=False),
+        sa.Column("starts_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column(
             "status",
             sa.Enum(
