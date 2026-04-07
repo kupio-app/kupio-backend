@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CategorySlim(BaseModel):
@@ -12,3 +12,9 @@ class CategorySlim(BaseModel):
 
 class CategoryResponse(CategorySlim):
     parent: CategorySlim | None
+
+
+class CategoryRequestCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    icon: str | None = Field(None, min_length=1, max_length=255)
+    parent_id: int | None

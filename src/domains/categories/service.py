@@ -1,8 +1,9 @@
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
-from .exceptions import CategoryNotFoundError
+from .exceptions import CategoryNotFoundError, InvalidParentProvided
 from .repository import CategoriesRepository
 from .models import Category
+from .schemas import CategoryRequestCreate
 
 
 class CategoriesService:
@@ -26,6 +27,24 @@ class CategoriesService:
             limit=limit,
             offset=offset,
         )
+
+    async def create_category(self, category_data: CategoryRequestCreate) -> Category:
+        parent_category: Category | None = None
+        if category_data.parent_id is not None:
+            if (
+                parent_category := await self.categories_repo.get_by_id(
+                    category_data.parent_id
+                )
+            ) is None:
+                raise InvalidParentProvided()
+
+        async with self.uow:
+            return await self.categories_repo.create(
+                name=category_data.name,
+                icon=category_data.icon,
+                depth=0 if parent_category is None else parent_category.depth + 1,
+                parent_id=category_data.parent_id,
+            )
 
     async def get_category(self, category_id: int) -> Category:
         category = await self.categories_repo.get_by_id(category_id)

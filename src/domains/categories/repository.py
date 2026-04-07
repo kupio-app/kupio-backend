@@ -9,6 +9,17 @@ from .models import Category
 class CategoriesRepository(BaseRepository):
     _SORTING_BY: tuple[ColumnElement[Any]] = (Category.name,)
 
+    async def create(
+        self, name: str, parent_id: int | None, icon: str | None, depth: int
+    ):
+        return self._add(
+            Category,
+            name=name,
+            parent_id=parent_id,
+            icon=icon,
+            depth=depth,
+        )
+
     async def get_by_id(self, category_id: int) -> Category | None:
         return await self._get(Category, Category.id == category_id)
 

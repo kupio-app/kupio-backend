@@ -1,13 +1,24 @@
 from fastapi import APIRouter, Depends
 
 from src.core.utils.pagination import LimitOffsetPaginationParams
+from src.core.dependencies import require_roles
+from src.domains.users.enums import UserRole
 
 from .dependencies import get_categories_service, get_category_by_id
 from .models import Category
-from .schemas import CategoryResponse, CategorySlim
+from .schemas import CategoryResponse, CategorySlim, CategoryRequestCreate
 from .service import CategoriesService
 
 router = APIRouter()
+
+
+@router.post("", response_model=CategoryResponse)
+async def create_category(
+    category_data: CategoryRequestCreate,
+    service: CategoriesService = Depends(get_categories_service),
+    _=Depends(require_roles(UserRole.MODERATOR)),
+):
+    return await service.create_category(category_data)
 
 
 @router.get("", response_model=list[CategoryResponse])
