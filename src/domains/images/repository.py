@@ -8,7 +8,7 @@ class ImagesRepository(BaseRepository):
     async def get_by_id(self, image_id: UUID) -> Image | None:
         return await self._get(Image, Image.id == image_id)
 
-    async def create(self, s3_key: str, content_type: str, size_bytes: int):
+    async def create(self, s3_key: str, content_type: str, size_bytes: int) -> Image:
         return await self._add(
             Image, s3_key=s3_key, content_type=content_type, size_bytes=size_bytes
         )
