@@ -1,4 +1,3 @@
-from functools import lru_cache
 from typing import Annotated, AsyncGenerator, Callable, Awaitable, TypeAlias
 
 from fastapi import Depends
@@ -73,6 +72,5 @@ def require_roles(*allowed_roles: str) -> Callable[..., Awaitable[User]]:
     return _checker
 
 
-@lru_cache(maxsize=1)
-def get_s3_storage_service() -> S3StorageService:
-    return S3StorageService(get_config().s3)
+def get_s3_storage_service(request: Request) -> S3StorageService:
+    return request.app.state.s3_storage
