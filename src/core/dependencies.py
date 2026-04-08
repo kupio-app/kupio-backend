@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import Annotated, AsyncGenerator, Callable, Awaitable, TypeAlias
 
 from fastapi import Depends
@@ -9,6 +10,7 @@ from src.core.config import get_config
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
 from src.core.security import decode_access_token
+from src.core.storage.s3 import S3StorageService
 from src.domains.auth.exceptions import (
     InsufficientPermissionsError,
     InvalidTokenError,
@@ -69,3 +71,8 @@ def require_roles(*allowed_roles: str) -> Callable[..., Awaitable[User]]:
         return current_user
 
     return _checker
+
+
+@lru_cache(maxsize=1)
+def get_s3_storage_service() -> S3StorageService:
+    return S3StorageService(get_config().s3)
