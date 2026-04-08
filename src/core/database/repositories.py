@@ -6,6 +6,7 @@ from src.domains.auth.repository import OAuthIdentitiesRepository, SessionsRepos
 from src.domains.categories.repository import CategoriesRepository
 from src.domains.filter_definitions.repository import FilterDefinitionsRepository
 from src.domains.favourites.repository import FavouritesRepository
+from src.domains.images.repository import ImagesRepository, ListingImagesRepository
 from src.domains.listings.repository import ListingsRepository
 from src.domains.users.repository import UsersRepository
 
@@ -19,6 +20,8 @@ class Repositories:
     categories: CategoriesRepository
     filter_definitions: FilterDefinitionsRepository
     favourites: FavouritesRepository
+    images: ImagesRepository
+    listing_images: ListingImagesRepository
 
     @classmethod
     def from_session(cls, session: AsyncSession) -> "Repositories":
@@ -30,4 +33,6 @@ class Repositories:
             categories=CategoriesRepository(session=session),
             filter_definitions=FilterDefinitionsRepository(session=session),
             favourites=FavouritesRepository(session=session),
+            images=ImagesRepository(session=session),
+            listing_images=ListingImagesRepository(session=session),
         )
