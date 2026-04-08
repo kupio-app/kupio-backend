@@ -45,17 +45,14 @@ async def create_filter_definition(
     )
 
 
-@router.put("/{filter_id}", response_model=FilterDefinitionResponse)
+@router.patch("/{filter_id}", response_model=FilterDefinitionResponse)
 async def update_filter_definition(
-    data: FilterDefinitionUpdateRequest,
+    filter_data: FilterDefinitionUpdateRequest,
     definition: FilterDefinition = Depends(get_filter_def_by_id),
     service: FilterDefinitionsService = Depends(get_filter_def_service),
     _=Depends(require_roles(UserRole.MODERATOR)),
 ):
-    return await service.update_definition(
-        definition,
-        **data.model_dump(exclude_none=True),
-    )
+    return await service.update_definition(definition, filter_data)
 
 
 @router.delete("/{filter_id}", status_code=status.HTTP_204_NO_CONTENT)

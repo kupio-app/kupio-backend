@@ -40,12 +40,12 @@ class FilterDefinitionRequest(BaseModel):
 
 
 class FilterDefinitionUpdateRequest(BaseModel):
-    slug: str | None = Field(default=None, max_length=100)
-    label: str | None = Field(default=None, max_length=255)
-    filter_type: FilterType | None = None
+    slug: str = Field(None, max_length=100)
+    label: str = Field(None, max_length=255)
+    filter_type: FilterType = None
     options: dict | None = None
-    is_required: bool | None = None
-    display_order: int | None = Field(default=None, ge=0)
+    is_required: bool = None
+    display_order: int = Field(None, ge=0)
 
     @field_validator("slug")
     @classmethod
