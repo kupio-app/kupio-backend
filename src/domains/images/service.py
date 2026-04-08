@@ -13,7 +13,11 @@ from src.domains.images.consts import (
     ALLOWED_CONTENT_TYPES,
     CONTENT_TYPE_TO_EXTENSION,
 )
-from src.domains.images.exceptions import ImageMaxSizeError, ImageContentTypeError
+from src.domains.images.exceptions import (
+    ImageMaxSizeError,
+    ImageContentTypeError,
+    ListingImageNotFoundError,
+)
 from src.domains.images.schemas import ImageResponse
 
 
@@ -105,12 +109,24 @@ class ImageService:
         return responses
 
     async def delete_listing_images(self, listing_id: UUID, image_ids: list[UUID]):
-        raise NotImplementedError()
+        async with self.uow:
+            for image_id in image_ids:
+                image_listing = await self.listing_images_repo.get_by_listing_and_image(
+                    listing_id, image_id
+                )
+                if image_listing is None:
+                    raise ListingImageNotFoundError()
+
+                await self.listing_images_repo.delete(image_listing.id)
+                await self.image_repo.delete(image_id)
 
     async def reorder_listing_images(self, listing_id: UUID, image_ids: list[UUID]):
         raise NotImplementedError
 
     async def set_user_avatar(self):
+        raise NotImplementedError()
+
+    async def remove_user_avatar(self):
         raise NotImplementedError()
 
 

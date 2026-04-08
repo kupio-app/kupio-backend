@@ -13,6 +13,9 @@ class ImagesRepository(BaseRepository):
             Image, s3_key=s3_key, content_type=content_type, size_bytes=size_bytes
         )
 
+    async def delete(self, image_id: UUID):
+        return await self._soft_delete(Image, Image.id == image_id)
+
 
 class ListingImagesRepository(BaseRepository):
     async def get_by_listing(self, listing_id: UUID) -> list[ListingImage]:
@@ -20,6 +23,15 @@ class ListingImagesRepository(BaseRepository):
             ListingImage,
             ListingImage.listing_id == listing_id,
             order_by=(ListingImage.sort_order.asc(),),
+        )
+
+    async def get_by_listing_and_image(
+        self, listing_id, image_id
+    ) -> ListingImage | None:
+        return await self._get(
+            ListingImage,
+            ListingImage.listing_id == listing_id,
+            ListingImage.image_id == image_id,
         )
 
     async def create(self, listing_id: UUID, image_id: UUID, sort_order: int):
