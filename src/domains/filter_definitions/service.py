@@ -10,6 +10,7 @@ from .exceptions import (
 )
 from .models import FilterDefinition
 from .repository import FilterDefinitionsRepository
+from .schemas import FilterDefinitionUpdateRequest
 from .utils import validate_filter_value, validate_select_options
 
 
@@ -64,11 +65,11 @@ class FilterDefinitionsService:
             )
 
     async def update_definition(
-        self, definition: FilterDefinition, **kwargs
+        self, definition: FilterDefinition, filter_data: FilterDefinitionUpdateRequest
     ) -> FilterDefinition:
         # Check about filter def existence already processed in router
 
-        new_slug = kwargs.get("slug")
+        new_slug = filter_data.slug
         if new_slug is not None and new_slug != definition.slug:
             if (
                 await self.repo.get_by_category_and_slug(
@@ -80,8 +81,8 @@ class FilterDefinitionsService:
 
         # Get filter_type and options after applying the update,
         # then validate that SELECT always has a valid options.values
-        resolved_filter_type = kwargs.get("filter_type", definition.filter_type)
-        resolved_options = kwargs.get("options", definition.options)
+        resolved_filter_type = filter_data.filter_type or definition.filter_type
+        resolved_options = filter_data.options or definition.options
         if resolved_filter_type == FilterType.SELECT:
             try:
                 validate_select_options(resolved_options)
@@ -89,7 +90,9 @@ class FilterDefinitionsService:
                 raise InvalidCustomFiltersError(str(e)) from e
 
         async with self.uow:
-            return await self.repo.update_by_id(definition.id, **kwargs)
+            return await self.repo.update_by_id(
+                definition.id, **filter_data.model_dump(exclude_unset=True)
+            )
 
     async def delete_definition(self, filter_id: int) -> None:
         # Check about filter def existence already processed in router

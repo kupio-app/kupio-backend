@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import String, Enum, ForeignKey
 from sqlalchemy.orm import Mapped as M, mapped_column as mc
 
-from src.core.database.base_model import Base, UUID
+from src.core.database.base_model import Base, UUID, Int64
 from src.core.database.mixins import SoftDeleteMixin
 from src.domains.users.enums import UserRole
 
@@ -19,6 +19,7 @@ class User(Base, SoftDeleteMixin):
     last_name: M[str | None] = mc(String(100))
     password_hash: M[str | None] = mc(String(512))
     role: M[UserRole] = mc(Enum(UserRole), default=UserRole.USER)
+    balance: M[Int64] = mc(default=0)
     avatar_image_id: M[UUID | None] = mc(ForeignKey("images.id", ondelete="SET NULL"))
 
     @property

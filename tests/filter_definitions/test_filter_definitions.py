@@ -214,7 +214,7 @@ async def test_update_filter_definition(client, session_factory):
     token = await _login(client, email="moderator@test.com")
     definition = await _create_filter(session_factory, category_id=category.id)
 
-    resp = await client.put(
+    resp = await client.patch(
         f"/api/categories/{category.id}/filters/{definition.id}",
         headers=_auth_header(token),
         json={"label": "RAM Memory", "is_required": True},
@@ -239,7 +239,7 @@ async def test_update_filter_definition_to_select_without_options_returns_400(
         options=None,
     )
 
-    resp = await client.put(
+    resp = await client.patch(
         f"/api/categories/{category.id}/filters/{definition.id}",
         headers=_auth_header(token),
         json={"filter_type": "select"},  # no options provided — service must catch this

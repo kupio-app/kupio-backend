@@ -15,6 +15,8 @@ import src.domains.categories.models  # noqa: F401
 import src.domains.filter_definitions.models  # noqa: F401
 import src.domains.favourites.models  # noqa: F401
 import src.domains.images.models  # noqa: F401
+import src.domains.payments.models  # noqa: F401
+import src.domains.promotions.models  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
