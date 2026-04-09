@@ -3,7 +3,13 @@ from uuid import UUID
 from fastapi import Depends
 
 from src.core.database.uow import UoW
-from src.core.dependencies import RepositoriesDeps, get_current_user, get_uow
+from src.core.dependencies import (
+    RepositoriesDeps,
+    get_current_user,
+    get_s3_storage_service,
+    get_uow,
+)
+from src.core.storage.s3 import S3StorageService
 from src.domains.categories.dependencies import get_categories_service
 from src.domains.categories.service import CategoriesService
 from src.domains.filter_definitions.dependencies import get_filter_def_service
@@ -22,12 +28,14 @@ def get_listings_service(
     filter_definitions_service: FilterDefinitionsService = Depends(
         get_filter_def_service
     ),
+    storage: S3StorageService = Depends(get_s3_storage_service),
 ) -> ListingsService:
     return ListingsService(
         repos=repos,
         uow=uow,
         categories_service=categories_service,
         filter_definitions_service=filter_definitions_service,
+        storage=storage,
     )
 
 

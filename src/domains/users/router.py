@@ -21,7 +21,8 @@ async def update_profile(
     current_user: User = Depends(get_current_user),
     service: UsersService = Depends(get_users_service),
 ):
-    return await service.update_profile(current_user, user_data)
+    user = await service.update_profile(current_user, user_data)
+    return await service.to_user_private(user)
 
 
 @router.patch("/me/username", response_model=UserPrivate)
@@ -30,12 +31,16 @@ async def set_username(
     current_user: User = Depends(get_current_user),
     service: UsersService = Depends(get_users_service),
 ):
-    return await service.set_username(current_user, payload)
+    user = await service.set_username(current_user, payload)
+    return await service.to_user_private(user)
 
 
 @router.get("/me", response_model=UserPrivate)
-async def me(current_user: User = Depends(get_current_user)):
-    return current_user
+async def me(
+    current_user: User = Depends(get_current_user),
+    service: UsersService = Depends(get_users_service),
+):
+    return await service.to_user_private(current_user)
 
 
 @router.get("/me/listings", response_model=ListListingsResponse)
@@ -51,8 +56,11 @@ async def get_my_listings(
 
 
 @router.get("/{username}", response_model=UserPublic)
-async def get_user(user: User = Depends(get_user_by_username)):
-    return user
+async def get_user(
+    user: User = Depends(get_user_by_username),
+    service: UsersService = Depends(get_users_service),
+):
+    return await service.to_user_public(user)
 
 
 @router.get("/{username}/listings", response_model=ListListingsResponse)

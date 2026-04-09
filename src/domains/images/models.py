@@ -28,7 +28,7 @@ class ListingImage(Base):
     )
 
     id: M[UUID] = mc(primary_key=True, default=uuid.uuid4)
-    listing_id: M[UUID] = mc(ForeignKey("listings.id"), ondelete="CASCADE")
-    image_id: M[UUID] = mc(ForeignKey("images.id"), ondelete="CASCADE")
+    listing_id: M[UUID] = mc(ForeignKey("listings.id", ondelete="CASCADE"))
+    image_id: M[UUID] = mc(ForeignKey("images.id", ondelete="CASCADE"))
     # 0 means it is the primary image (cover)
     sort_order: M[Int16]

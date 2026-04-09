@@ -1,5 +1,7 @@
 from uuid import UUID
 
+from sqlalchemy import select
+
 from src.core.database.base_repository import BaseRepository
 from src.domains.images.models import Image, ListingImage
 
@@ -24,6 +26,33 @@ class ListingImagesRepository(BaseRepository):
             ListingImage.listing_id == listing_id,
             order_by=(ListingImage.sort_order.asc(),),
         )
+
+    async def get_images_for_listing(
+        self, listing_id: UUID
+    ) -> list[tuple[ListingImage, Image]]:
+        stmt = (
+            select(ListingImage, Image)
+            .join(Image, Image.id == ListingImage.image_id)
+            .where(ListingImage.listing_id == listing_id)
+            .order_by(ListingImage.sort_order.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.all())
+
+    async def get_images_for_listings(
+        self, listing_ids: list[UUID]
+    ) -> list[tuple[ListingImage, Image]]:
+        if not listing_ids:
+            return []
+
+        stmt = (
+            select(ListingImage, Image)
+            .join(Image, Image.id == ListingImage.image_id)
+            .where(ListingImage.listing_id.in_(listing_ids))
+            .order_by(ListingImage.listing_id.asc(), ListingImage.sort_order.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.all())
 
     async def get_by_listing_and_image(
         self, listing_id, image_id

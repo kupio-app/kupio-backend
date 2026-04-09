@@ -13,6 +13,8 @@ from src.domains.listings.dependencies import get_owned_listing_by_id
 from src.domains.listings.models import Listing
 from src.domains.users.models import User
 from src.domains.users.schemas import UserPrivate
+from src.domains.users.dependencies import get_users_service
+from src.domains.users.service import UsersService
 
 router = APIRouter()
 
@@ -57,8 +59,10 @@ async def set_avatar(
     file: UploadFile = File(...),
     service: ImageService = Depends(get_images_service),
     current_user: User = Depends(get_current_user),
+    users_service: UsersService = Depends(get_users_service),
 ):
-    return await service.set_user_avatar(current_user, file)
+    user = await service.set_user_avatar(current_user, file)
+    return await users_service.to_user_private(user)
 
 
 @router.delete("/users/me/avatar", status_code=status.HTTP_204_NO_CONTENT)
