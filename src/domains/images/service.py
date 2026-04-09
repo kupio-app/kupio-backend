@@ -20,7 +20,7 @@ from src.domains.images.exceptions import (
     InvalidListingImageOrderError,
     UserAvatarNotFoundError,
 )
-from src.domains.images.schemas import ImageResponse
+from src.domains.images.schemas import ListingImageResponse
 from src.domains.users.models import User
 
 
@@ -37,7 +37,7 @@ class ImageService:
         self,
         listing_id: UUID,
         files: list[UploadFile],
-    ) -> list[ImageResponse]:
+    ) -> list[ListingImageResponse]:
         prepared_files = []
 
         for file in files:
@@ -62,7 +62,7 @@ class ImageService:
         next_sort_order = len(existing_images)
 
         uploaded_keys: list[str] = []
-        responses: list[ImageResponse] = []
+        responses: list[ListingImageResponse] = []
 
         try:
             async with self.uow:
@@ -93,7 +93,7 @@ class ImageService:
                     )
 
                     responses.append(
-                        ImageResponse(
+                        ListingImageResponse(
                             id=image.id,
                             url=self.storage.build_public_url(s3_key),
                             sort_order=sort_order,
