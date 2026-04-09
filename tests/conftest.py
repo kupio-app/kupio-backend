@@ -69,6 +69,12 @@ async def app(session_factory, monkeypatch: pytest.MonkeyPatch):
             self._bucket = bucket
             self._region = region
 
+        def upload_file(self, fileobj, key: str, content_type: str) -> None:
+            return None
+
+        def delete_object(self, key: str) -> None:
+            return None
+
         def build_public_url(self, key: str) -> str:
             from urllib.parse import quote
 
