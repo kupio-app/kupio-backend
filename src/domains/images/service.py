@@ -112,29 +112,50 @@ class ImageService:
 
         return responses
 
-    async def delete_listing_images(self, listing_id: UUID, image_ids: list[UUID]):
+    async def delete_listing_image(self, listing_id: UUID, image_id: UUID):
         async with self.uow:
-            for image_id in image_ids:
-                image_listing = await self.listing_images_repo.get_by_listing_and_image(
-                    listing_id, image_id
-                )
-                if image_listing is None:
-                    raise ListingImageNotFoundError()
+            image_listing = await self.listing_images_repo.get_by_listing_and_image(
+                listing_id, image_id
+            )
+            if image_listing is None:
+                raise ListingImageNotFoundError()
 
-                await self.listing_images_repo.delete(image_listing.id)
-                await self.image_repo.delete(image_id)
+            await self.listing_images_repo.delete(image_listing.id)
+            await self.image_repo.delete(image_id)
+
+            remaining_images = await self.listing_images_repo.get_by_listing(listing_id)
+            for sort_order, listing_image in enumerate(remaining_images):
+                if listing_image.sort_order != sort_order:
+                    await self.listing_images_repo.update_order(
+                        listing_image.id, sort_order
+                    )
 
     async def reorder_listing_images(self, listing_id: UUID, image_ids: list[UUID]):
         listing_images = await self.listing_images_repo.get_by_listing(listing_id)
-        listing_images_ids = {li.image_id for li in listing_images}
+        current_image_ids = [listing_image.image_id for listing_image in listing_images]
 
-        if listing_images_ids != set(image_ids):
+        if len(image_ids) != len(current_image_ids) or set(image_ids) != set(
+            current_image_ids
+        ):
             raise InvalidListingImageOrderError()
 
+        listing_images_by_image_id = {
+            listing_image.image_id: listing_image for listing_image in listing_images
+        }
+
         async with self.uow:
-            for listing_image in listing_images:
+            temporary_sort_order_offset = len(listing_images)
+            for temporary_sort_order, listing_image in enumerate(
+                listing_images, start=temporary_sort_order_offset
+            ):
                 await self.listing_images_repo.update_order(
-                    listing_image.id, image_ids.index(listing_image.image_id)
+                    listing_image.id, temporary_sort_order
+                )
+
+            for sort_order, image_id in enumerate(image_ids):
+                listing_image = listing_images_by_image_id[image_id]
+                await self.listing_images_repo.update_order(
+                    listing_image.id, sort_order
                 )
 
     async def set_user_avatar(self, user: User, file: UploadFile) -> User:
