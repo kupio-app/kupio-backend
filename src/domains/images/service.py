@@ -18,6 +18,7 @@ from src.domains.images.exceptions import (
     ImageContentTypeError,
     ListingImageNotFoundError,
     InvalidListingImageOrderError,
+    UserAvatarNotFoundError,
 )
 from src.domains.images.schemas import ImageResponse
 from src.domains.users.models import User
@@ -181,8 +182,19 @@ class ImageService:
                 pass
             raise
 
-    async def remove_user_avatar(self):
-        raise NotImplementedError()
+    async def remove_user_avatar(self, user: User):
+        old_avatar_image_id = user.avatar_image_id
+        if old_avatar_image_id is None:
+            raise UserAvatarNotFoundError()
+
+        image = await self.image_repo.get_by_id(old_avatar_image_id)
+        if image is None:
+            raise UserAvatarNotFoundError()
+
+        async with self.uow:
+            await self.user_repo.update(user.id, avatar_image_id=None)
+
+            await self.image_repo.delete(old_avatar_image_id)
 
 
 def build_listing_image_key(listing_id: UUID, content_type: str) -> str:

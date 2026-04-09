@@ -16,3 +16,7 @@ class ListingImageNotFoundError(NotFoundError):
 
 class InvalidListingImageOrderError(UnprocessableEntityError):
     detail = "image_ids must contain all listing images exactly once"
+
+
+class UserAvatarNotFoundError(NotFoundError):
+    detail = "User avatar not found"
