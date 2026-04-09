@@ -17,8 +17,10 @@ from src.domains.images.exceptions import (
     ImageMaxSizeError,
     ImageContentTypeError,
     ListingImageNotFoundError,
+    InvalidListingImageOrderError,
 )
 from src.domains.images.schemas import ImageResponse
+from src.domains.users.models import User
 
 
 class ImageService:
@@ -26,6 +28,7 @@ class ImageService:
         self.repos = repos
         self.image_repo = repos.images
         self.listing_images_repo = repos.listing_images
+        self.user_repo = repos.users
         self.uow = uow
         self.storage = storage
 
@@ -121,10 +124,62 @@ class ImageService:
                 await self.image_repo.delete(image_id)
 
     async def reorder_listing_images(self, listing_id: UUID, image_ids: list[UUID]):
-        raise NotImplementedError
+        listing_images = await self.listing_images_repo.get_by_listing(listing_id)
+        listing_images_ids = {li.image_id for li in listing_images}
 
-    async def set_user_avatar(self):
-        raise NotImplementedError()
+        if listing_images_ids != set(image_ids):
+            raise InvalidListingImageOrderError()
+
+        async with self.uow:
+            for listing_image in listing_images:
+                await self.listing_images_repo.update_order(
+                    listing_image.id, image_ids.index(listing_image.image_id)
+                )
+
+    async def set_user_avatar(self, user: User, file: UploadFile) -> User:
+        content = await file.read()
+        size_bytes = len(content)
+
+        if size_bytes > MAX_IMAGE_SIZE_BYTES:
+            raise ImageMaxSizeError()
+
+        if file.content_type not in ALLOWED_CONTENT_TYPES:
+            raise ImageContentTypeError()
+
+        old_avatar_image_id = user.avatar_image_id
+        s3_key = build_avatar_key(user.id, file.content_type)
+
+        try:
+            await run_in_threadpool(
+                self.storage.upload_file,
+                io.BytesIO(content),
+                s3_key,
+                file.content_type,
+            )
+
+            async with self.uow:
+                image = await self.image_repo.create(
+                    s3_key=s3_key,
+                    content_type=file.content_type,
+                    size_bytes=size_bytes,
+                )
+
+                user = await self.user_repo.update(
+                    user_id=user.id,
+                    avatar_image_id=image.id,
+                )
+
+                if old_avatar_image_id is not None:
+                    await self.image_repo.delete(old_avatar_image_id)
+
+            return user
+
+        except Exception:
+            try:
+                await run_in_threadpool(self.storage.delete_object, s3_key)
+            except Exception:
+                pass
+            raise
 
     async def remove_user_avatar(self):
         raise NotImplementedError()

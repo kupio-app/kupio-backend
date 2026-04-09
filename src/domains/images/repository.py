@@ -42,5 +42,13 @@ class ListingImagesRepository(BaseRepository):
             sort_order=sort_order,
         )
 
+    async def update_order(self, listing_image_id: UUID, sort_order: int):
+        return await self._update(
+            ListingImage,
+            conditions=[ListingImage.id == listing_image_id],
+            load_result=False,
+            sort_order=sort_order,
+        )
+
     async def delete(self, id: UUID) -> bool:
         return await self._delete(ListingImage, ListingImage.id == id)

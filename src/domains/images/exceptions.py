@@ -12,3 +12,7 @@ class ImageContentTypeError(UnprocessableEntityError):
 
 class ListingImageNotFoundError(NotFoundError):
     detail = "Listing image not found"
+
+
+class InvalidListingImageOrderError(UnprocessableEntityError):
+    detail = "image_ids must contain all listing images exactly once"
