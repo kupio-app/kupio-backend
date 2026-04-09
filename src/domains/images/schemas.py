@@ -7,3 +7,7 @@ class ListingImageResponse(BaseModel):
     id: UUID
     url: str
     sort_order: int
+
+
+class UpdateListingImagesOrderRequest(BaseModel):
+    image_ids: list[UUID]

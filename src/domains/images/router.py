@@ -3,7 +3,10 @@ from starlette import status
 
 from src.core.database.base_model import UUID
 from src.domains.images.dependencies import get_images_service
-from src.domains.images.schemas import ListingImageResponse
+from src.domains.images.schemas import (
+    ListingImageResponse,
+    UpdateListingImagesOrderRequest,
+)
 from src.domains.images.service import ImageService
 from src.domains.listings.dependencies import get_owned_listing_by_id
 from src.domains.listings.models import Listing
@@ -33,3 +36,14 @@ async def delete_listing_image(
     listing: Listing = Depends(get_owned_listing_by_id),
 ):
     return await service.delete_listing_image(listing.id, image_id)
+
+
+@router.put(
+    "/listings/{listing_id}/images/order", status_code=status.HTTP_204_NO_CONTENT
+)
+async def update_listing_images_order(
+    payload: UpdateListingImagesOrderRequest,
+    service: ImageService = Depends(get_images_service),
+    listing: Listing = Depends(get_owned_listing_by_id),
+):
+    return await service.reorder_listing_images(listing.id, payload.image_ids)
