@@ -55,10 +55,20 @@ app-run-services:
 down:
 	docker-compose down
 
+# Run worker locally (requires running services)
+.PHONY: worker
+worker:
+	poetry run streaq run src.worker:worker
+
 # Follow app container logs
 .PHONY: logs
 logs:
 	docker-compose logs -f app
+
+# Follow worker container logs
+.PHONY: worker-logs
+worker-logs:
+	docker-compose logs -f worker
 
 # Run tests (starts services automatically)
 .PHONY: tests
