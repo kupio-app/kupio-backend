@@ -127,9 +127,7 @@ async def test_decline_report_updates_only_selected_report(client, session_facto
         client, email="seller9@example.com", username="seller9"
     )
     buyer_token = await _register(client, email="buyer9@example.com", username="buyer9")
-    moderator_token = await _register(
-        client, email="mod9@example.com", username="mod9"
-    )
+    moderator_token = await _register(client, email="mod9@example.com", username="mod9")
     await _make_moderator(session_factory, username="mod9")
     listing = await _create_listing(client, token=seller_token, category_id=category.id)
     await _activate_listing(client, token=seller_token, listing_id=listing["id"])
@@ -292,7 +290,9 @@ async def test_ban_user_soft_deletes_seller_and_resolves_related_reports(
 
     public_list = await client.get("/api/listings")
     assert public_list.status_code == 200
-    listing_ids = {listing_item["id"] for listing_item in public_list.json()["listings"]}
+    listing_ids = {
+        listing_item["id"] for listing_item in public_list.json()["listings"]
+    }
     assert listing_a["id"] not in listing_ids
     assert listing_b["id"] not in listing_ids
 

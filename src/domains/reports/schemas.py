@@ -87,6 +87,16 @@ class ReportListingSummary(BaseModel):
     primary_image_url: str | None
 
 
+class ReportListingDetail(BaseModel):
+    id: UUID
+    title: str
+    description: str
+    price: int
+    currency: CurrencyEnum
+    status: ListingStatus
+    primary_image_url: str | None
+
+
 class CreatedListingReportResponse(BaseModel):
     id: int
     listing_id: UUID
@@ -127,7 +137,7 @@ class ReportDetailResponse(BaseModel):
     updated_at: datetime.datetime | None
     additional_info: str | None
     reason: ReportReasonSummary
-    listing: ReportListingSummary
+    listing: ReportListingDetail
     seller: ReportSellerSummary
     seen_at: datetime.datetime | None
     seen_by_moderator_id: UUID | None

@@ -24,6 +24,7 @@ from src.domains.reports.schemas import (
     ListReportsResponse,
     ModerateReportRequest,
     ReportDetailResponse,
+    ReportListingDetail,
     ReportListItem,
     ReportListingSummary,
     ReportReasonSummary,
@@ -257,6 +258,17 @@ class ReportsService:
             primary_image_url=None,
         )
 
+    def _build_listing_detail(self, listing: Listing) -> ReportListingDetail:
+        return ReportListingDetail(
+            id=listing.id,
+            title=listing.title,
+            description=listing.description,
+            price=listing.price,
+            currency=listing.currency,
+            status=listing.status,
+            primary_image_url=None,
+        )
+
     def _build_created_report_response(
         self,
         report: ListingReport,
@@ -296,7 +308,7 @@ class ReportsService:
             updated_at=report.updated_at,
             additional_info=report.additional_info,
             reason=self._build_reason_summary(report.reason),
-            listing=self._build_listing_summary(report.listing),
+            listing=self._build_listing_detail(report.listing),
             seller=self._build_seller_summary(report.listing),
             seen_at=report.seen_at,
             seen_by_moderator_id=report.seen_by_moderator_id,
@@ -335,7 +347,7 @@ class ReportsService:
 
         try:
             created_at = datetime.datetime.fromisoformat(data["created_at"])
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None, None
         if created_at.tzinfo is not None:
             created_at = created_at.astimezone(datetime.UTC).replace(tzinfo=None)

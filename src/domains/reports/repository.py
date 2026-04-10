@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, case, func, select, update
+from sqlalchemy import ColumnElement, and_, case, func, or_, select, update
 from sqlalchemy.orm import joinedload
 
 from src.core.database.base_repository import BaseRepository
@@ -129,8 +129,16 @@ class ReportsRepository(BaseRepository):
         elif seen is False:
             conditions.append(ListingReport.seen_at.is_(None))
 
-        if cursor_id is not None:
-            conditions.append(ListingReport.id < cursor_id)
+        if cursor_created_at is not None and cursor_id is not None:
+            conditions.append(
+                or_(
+                    ListingReport.created_at < cursor_created_at,
+                    and_(
+                        ListingReport.created_at == cursor_created_at,
+                        ListingReport.id < cursor_id,
+                    ),
+                )
+            )
 
         stmt = (
             select(ListingReport)
@@ -145,7 +153,7 @@ class ReportsRepository(BaseRepository):
         return list((await self.session.scalars(stmt)).unique())
 
     async def get_dashboard_stats(self) -> ReportsDashboardStatsData:
-        today = datetime.datetime.now(datetime.UTC).date().isoformat()
+        today = datetime.datetime.now(datetime.UTC).date()
 
         stmt = select(
             func.coalesce(

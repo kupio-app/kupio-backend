@@ -1,7 +1,9 @@
+import datetime
+
 from sqlalchemy import select, update
 
 from src.domains.categories.models import Category
-from src.domains.reports.models import ReportReason
+from src.domains.reports.models import ListingReport, ReportReason
 from src.domains.users.enums import UserRole
 from src.domains.users.models import User
 
@@ -105,7 +107,9 @@ async def _create_reason(
 
 async def test_create_listing_report_success(client, session_factory):
     category = await _create_category(session_factory)
-    seller_token = await _register(client, email="seller@example.com", username="seller")
+    seller_token = await _register(
+        client, email="seller@example.com", username="seller"
+    )
     buyer_token = await _register(client, email="buyer@example.com", username="buyer")
     listing = await _create_listing(client, token=seller_token, category_id=category.id)
     reason = await _create_reason(
@@ -187,7 +191,9 @@ async def test_create_listing_report_blocks_duplicate_pending(client, session_fa
     )
 
     assert second.status_code == 409
-    assert second.json()["detail"] == "You already have a pending report for this listing"
+    assert (
+        second.json()["detail"] == "You already have a pending report for this listing"
+    )
 
 
 async def test_create_listing_report_blocks_own_listing(client, session_factory):
@@ -328,11 +334,15 @@ async def test_get_report_detail_marks_seen_once_for_all_moderators(
     assert first_detail.status_code == 200
     first_body = first_detail.json()
     assert first_body["seen_at"] is not None
+    assert (
+        first_body["listing"]["description"]
+        == _listing_payload(category_id=category.id)["description"]
+    )
 
     moderator_a_id = None
     async with session_factory() as session:
-        moderator_a_id = (
-            await session.scalar(select(User.id).where(User.username == "moda"))
+        moderator_a_id = await session.scalar(
+            select(User.id).where(User.username == "moda")
         )
 
     assert first_body["seen_by_moderator_id"] == str(moderator_a_id)
@@ -399,6 +409,19 @@ async def test_get_reports_paginates_with_cursor(client, session_factory):
         json={"reason_id": reason.id},
     )
     assert second_create.status_code == 201
+    first_report_id = first_create.json()["id"]
+    second_report_id = second_create.json()["id"]
+
+    async with session_factory() as session:
+        await session.execute(
+            update(ListingReport)
+            .where(ListingReport.id == first_report_id)
+            .values(
+                created_at=datetime.datetime.now(datetime.UTC)
+                + datetime.timedelta(days=1)
+            )
+        )
+        await session.commit()
 
     first_page = await client.get(
         "/api/reports?limit=1",
@@ -416,4 +439,5 @@ async def test_get_reports_paginates_with_cursor(client, session_factory):
     assert second_page.status_code == 200
     second_body = second_page.json()
     assert len(second_body["reports"]) == 1
-    assert second_body["reports"][0]["id"] != first_body["reports"][0]["id"]
+    assert first_body["reports"][0]["id"] == first_report_id
+    assert second_body["reports"][0]["id"] == second_report_id
