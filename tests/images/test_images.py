@@ -1,6 +1,10 @@
 import itertools
+from uuid import UUID
+
+from sqlalchemy import select
 
 from src.domains.categories.models import Category
+from src.domains.images.models import ListingImage
 
 _cat_id = itertools.count(1)
 
@@ -101,6 +105,22 @@ async def test_upload_listing_images_and_get_listing_includes_them(
     images = listing_resp.json()["images"]
     assert [image["id"] for image in images] == [image["id"] for image in body]
     assert [image["sort_order"] for image in images] == [0, 1]
+
+    async with session_factory() as session:
+        listing_image_rows = (
+            await session.scalars(
+                select(ListingImage).where(
+                    ListingImage.listing_id == UUID(listing["id"])
+                )
+            )
+        ).all()
+
+    assert {image["id"] for image in images} == {
+        str(listing_image.image_id) for listing_image in listing_image_rows
+    }
+    assert {image["id"] for image in images}.isdisjoint(
+        {str(listing_image.id) for listing_image in listing_image_rows}
+    )
 
 
 async def test_reorder_listing_images_updates_listing_response(client, session_factory):

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped as M, mapped_column as mc, relationship
 
 from src.core.database.base_model import Base, UUID, Int64, JSONDict
 from src.core.database.mixins import SoftDeleteMixin
+from src.domains.images.models import ListingImage
 from src.domains.listings.enums import ListingStatus, CurrencyEnum
 
 if TYPE_CHECKING:
@@ -24,7 +25,13 @@ class Listing(Base, SoftDeleteMixin):
     user_id: M[UUID] = mc(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     user: M["User"] = relationship("User", lazy="joined")
     category_id: M[Int64] = mc(ForeignKey("categories.id"), nullable=False)
-    category: M["Category"] = relationship("Category", lazy="selectin")
+    category: M["Category"] = relationship("Category", lazy="select")
+    images: M[list[ListingImage]] = relationship(
+        "ListingImage",
+        lazy="select",
+        order_by=lambda: ListingImage.sort_order,
+        back_populates="listing",
+    )
     title: M[str] = mc(String(255))
     description: M[str]
     price: M[Int64]

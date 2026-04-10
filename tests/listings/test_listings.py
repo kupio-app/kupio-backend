@@ -1,7 +1,11 @@
 import itertools
 import uuid
 
+from sqlalchemy import inspect
+
+from src.core.database.repositories import Repositories
 from src.domains.categories.models import Category
+from src.domains.listings.enums import CurrencyEnum, ListingStatus
 
 _cat_id = itertools.count(1)
 
@@ -310,3 +314,56 @@ async def test_get_user_listings_unknown_user_returns_404(client):
     resp = await client.get("/api/users/nonexistent-xyz/listings")
 
     assert resp.status_code == 404
+
+
+async def test_listings_repository_separates_lean_and_response_reads(session_factory):
+    async with session_factory() as session:
+        repos = Repositories.from_session(session)
+        category = Category(id=next(_cat_id), name="Repo Listings", depth=0)
+        session.add(category)
+
+        user = await repos.users.create(
+            email="repo-listings@example.com",
+            username="repo-listings",
+            password_hash="hash",
+        )
+        listing = await repos.listings.create(
+            user_id=user.id,
+            category_id=category.id,
+            title="Gaming laptop repository",
+            description="Repository-level listing description with enough length for validation.",
+            price=1234,
+            is_free=False,
+            is_tradable=False,
+            currency=CurrencyEnum.USD,
+            status=ListingStatus.ACTIVE,
+            custom_filters=None,
+        )
+        image = await repos.images.create(
+            s3_key=f"listings/{listing.id}/repo-image.png",
+            content_type="image/png",
+            size_bytes=123,
+        )
+        await repos.listing_images.create(
+            listing_id=listing.id,
+            image_id=image.id,
+            sort_order=0,
+        )
+        await session.commit()
+        listing_id = listing.id
+
+    async with session_factory() as session:
+        repos = Repositories.from_session(session)
+        lean_listing = await repos.listings.get_by_id(listing_id)
+        assert lean_listing is not None
+        assert "category" in inspect(lean_listing).unloaded
+        assert "images" in inspect(lean_listing).unloaded
+
+    async with session_factory() as session:
+        repos = Repositories.from_session(session)
+        response_listing = await repos.listings.get_for_response_by_id(listing_id)
+        assert response_listing is not None
+        assert "category" not in inspect(response_listing).unloaded
+        assert "images" not in inspect(response_listing).unloaded
+        assert response_listing.images
+        assert "image" not in inspect(response_listing.images[0]).unloaded

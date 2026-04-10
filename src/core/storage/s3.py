@@ -1,5 +1,4 @@
 from typing import BinaryIO
-from urllib.parse import quote
 
 import boto3
 from fastapi import FastAPI
@@ -32,9 +31,6 @@ class S3StorageService:
             Bucket=self._bucket,
             Key=key,
         )
-
-    def build_public_url(self, key: str) -> str:
-        return f"https://{self._bucket}.s3.{self._region}.amazonaws.com/{quote(key, safe='/')}"
 
     def close(self):
         self._client.close()

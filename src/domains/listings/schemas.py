@@ -21,7 +21,7 @@ class ListingResponse(BaseModel):
     user_id: UUID
     category: CategorySlim
     custom_filters: dict[str, Any] | None
-    images: list[ListingImageResponse] = []
+    images: list[ListingImageResponse] = Field(default_factory=list)
     created_at: datetime.datetime
     updated_at: datetime.datetime | None
 

@@ -4,15 +4,40 @@ from uuid import UUID
 
 from sqlalchemy import select, and_, or_, cast, ColumnElement
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import selectinload
 
 from src.core.database.base_repository import BaseRepository
+from src.domains.images.models import ListingImage
 from .enums import ListingStatus, CurrencyEnum
 from .models import Listing
 
 
 class ListingsRepository(BaseRepository):
-    async def get_by_id(self, listing_id: UUID) -> Listing:
-        return await self._get(Listing, Listing.id == listing_id)
+    @staticmethod
+    def _response_read_options():
+        return (
+            selectinload(Listing.category),
+            selectinload(Listing.images).joinedload(ListingImage.image),
+        )
+
+    async def get_by_id(
+        self, listing_id: UUID, *, populate_existing: bool = False
+    ) -> Listing:
+        return await self._get(
+            Listing,
+            Listing.id == listing_id,
+            populate_existing=populate_existing,
+        )
+
+    async def get_for_response_by_id(
+        self, listing_id: UUID, *, populate_existing: bool = False
+    ) -> Listing:
+        return await self._get(
+            Listing,
+            Listing.id == listing_id,
+            options=self._response_read_options(),
+            populate_existing=populate_existing,
+        )
 
     async def create(
         self,
@@ -27,7 +52,7 @@ class ListingsRepository(BaseRepository):
         status: ListingStatus,
         custom_filters: dict | None = None,
     ) -> Listing:
-        return await self._add(
+        listing = await self._add(
             Listing,
             user_id=user_id,
             category_id=category_id,
@@ -40,6 +65,8 @@ class ListingsRepository(BaseRepository):
             status=status,
             custom_filters=custom_filters,
         )
+        listing_id = listing.id
+        return await self.get_for_response_by_id(listing_id, populate_existing=True)
 
     async def search_all(
         self,
@@ -81,16 +108,14 @@ class ListingsRepository(BaseRepository):
         stmt = (
             select(Listing)
             .where(*conditions)
+            .options(*self._response_read_options())
             .order_by(Listing.created_at.desc(), Listing.id.desc())
             .limit(limit)
         )
         return list((await self.session.scalars(stmt)).unique())
 
     async def update_by_id(self, listing_id: UUID, **kwargs) -> Listing | None:
-        result = await self._update(
-            Listing, [Listing.id == listing_id], **kwargs, load_result=True
+        await self._update(
+            Listing, [Listing.id == listing_id], load_result=False, **kwargs
         )
-        if result is not None:
-            await self.session.refresh(result, ["category"])
-
-        return result
+        return await self.get_for_response_by_id(listing_id, populate_existing=True)

@@ -4,6 +4,7 @@ import uuid
 from fastapi import UploadFile
 from starlette.concurrency import run_in_threadpool
 
+from src.core.config import get_config
 from src.core.database.base_model import UUID
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
@@ -95,7 +96,7 @@ class ImageService:
                     responses.append(
                         ListingImageResponse(
                             id=image.id,
-                            url=self.storage.build_public_url(s3_key),
+                            url=get_config().s3.build_public_url(s3_key),
                             sort_order=sort_order,
                         )
                     )
