@@ -1,7 +1,7 @@
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 
 from src.app import get_app
 from src.core.config import get_config
@@ -34,15 +34,17 @@ async def session_factory(engine):
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def reset_schema(engine):
-    async with engine.begin() as conn:
+async def reset_schema(engine: AsyncEngine):
+    conn = await engine.connect()
+    try:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
+    finally:
+        await conn.close()
 
 
 @pytest_asyncio.fixture
 async def app(session_factory, monkeypatch: pytest.MonkeyPatch):
-    # Keep config parsing stable for tests; DB/redis values are placeholders.
     monkeypatch.setenv("POSTGRES__HOST", "localhost")
     monkeypatch.setenv("POSTGRES__DB", "kupio_test")
     monkeypatch.setenv("POSTGRES__PASSWORD", "test")
@@ -53,6 +55,10 @@ async def app(session_factory, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("REDIS__DB", "0")
     monkeypatch.setenv("AUTH__JWT_SECRET", "test-secret")
     monkeypatch.setenv("AUTH__GOOGLE_CLIENT_IDS", '["test-google-client-id"]')
+    monkeypatch.setenv("STRIPE__SECRET_KEY", "sk_test_123")
+    monkeypatch.setenv("STRIPE__WEBHOOK_SECRET", "whsec_test_123")
+    monkeypatch.setenv("STRIPE__SUCCESS_URL", "http://test/success")
+    monkeypatch.setenv("STRIPE__CANCEL_URL", "http://test/cancel")
 
     get_config.cache_clear()
     app = get_app()
