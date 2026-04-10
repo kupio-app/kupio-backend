@@ -1,4 +1,4 @@
-import stripe
+from stripe import StripeClient, Webhook as StripeWebhook, error as stripe_error
 
 from src.core.config import StripeConfig
 from src.core.database.repositories import Repositories
@@ -16,7 +16,7 @@ class PaymentsService:
         repos: Repositories,
         uow: UoW,
         *,
-        stripe_client: stripe.StripeClient,
+        stripe_client: StripeClient,
         stripe_config: StripeConfig,
     ) -> None:
         self.repos = repos
@@ -77,12 +77,12 @@ class PaymentsService:
             raise WebhookSignatureError()
 
         try:
-            event = stripe.Webhook.construct_event(
+            event = StripeWebhook.construct_event(
                 payload,
                 sig_header,
                 self.stripe_config.webhook_secret.get_secret_value(),
             )
-        except stripe.error.SignatureVerificationError as exc:
+        except stripe_error.SignatureVerificationError as exc:
             raise WebhookSignatureError() from exc
 
         event_type = event["type"]
