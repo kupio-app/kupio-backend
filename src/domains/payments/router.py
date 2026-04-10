@@ -35,7 +35,7 @@ async def create_checkout(
     return await service.create_checkout_session(current_user, body)
 
 
-@router.post("/webhooks/stripe")
+@router.post("/webhooks/stripe", include_in_schema=False)
 async def stripe_webhook(
     request: Request,
     stripe_signature: str = Header(),
