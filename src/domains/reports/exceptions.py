@@ -1,4 +1,9 @@
-from src.core.exceptions import BadRequestError, ConflictError, ForbiddenError, NotFoundError
+from src.core.exceptions import (
+    BadRequestError,
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+)
 
 
 class ReportReasonNotFoundError(NotFoundError):
@@ -39,4 +44,3 @@ class DuplicatePendingListingReportError(ConflictError):
 
 class ListingReportAlreadyResolvedError(ConflictError):
     detail = "Report has already been resolved"
-

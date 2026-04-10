@@ -8,7 +8,6 @@ from sqlalchemy.orm import joinedload
 
 from src.core.database.base_repository import BaseRepository
 from src.domains.listings.models import Listing
-from src.domains.users.models import User
 
 from .enums import ReportStatus
 from .models import ListingReport, ReportReason
@@ -61,7 +60,9 @@ class ReportReasonsRepository(BaseRepository):
         )
 
     async def update_by_id(self, reason_id: int, **kwargs: Any) -> ReportReason | None:
-        return await self._update(ReportReason, [ReportReason.id == reason_id], **kwargs)
+        return await self._update(
+            ReportReason, [ReportReason.id == reason_id], **kwargs
+        )
 
 
 class ReportsRepository(BaseRepository):
@@ -310,4 +311,3 @@ class ReportsRepository(BaseRepository):
         )
         await self.session.flush()
         return int(getattr(result, "rowcount", 0))
-

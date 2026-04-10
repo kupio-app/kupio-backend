@@ -18,4 +18,3 @@ class ReportDecisionAction(StrEnum):
     DECLINE = auto()
     REMOVE_LISTING = auto()
     BAN_USER = auto()
-
