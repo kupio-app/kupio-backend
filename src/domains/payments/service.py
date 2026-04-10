@@ -1,4 +1,5 @@
 from stripe import StripeClient, Webhook as StripeWebhook, error as stripe_error
+from stripe.params.checkout import SessionCreateParams, SessionCreateParamsLineItem
 
 from src.core.config import StripeConfig
 from src.core.database.repositories import Repositories
@@ -47,20 +48,22 @@ class PaymentsService:
             )
 
         session = await self.stripe_client.v1.checkout.sessions.create_async(
-            mode="payment",
-            line_items=[
-                {
-                    "price_data": {
-                        "currency": "eur",
-                        "unit_amount": body.amount,
-                        "product_data": {"name": "Balance Top-up"},
-                    },
-                    "quantity": 1,
-                }
-            ],
-            success_url=self.stripe_config.success_url,
-            cancel_url=self.stripe_config.cancel_url,
-            metadata={"internal_session_id": str(checkout_row.id)},
+            SessionCreateParams(
+                mode="payment",
+                line_items=[
+                    SessionCreateParamsLineItem(
+                        price_data={
+                            "currency": "eur",
+                            "unit_amount": body.amount,
+                            "product_data": {"name": "Balance Top-up"},
+                        },
+                        quantity=1,
+                    )
+                ],
+                success_url=self.stripe_config.success_url,
+                cancel_url=self.stripe_config.cancel_url,
+                metadata={"internal_session_id": str(checkout_row.id)},
+            )
         )
 
         async with self.uow:
@@ -95,11 +98,17 @@ class PaymentsService:
             if checkout is None or checkout.status != PaymentSessionStatus.PENDING:
                 return
 
+            payment_intent: str | None = None
+            try:
+                payment_intent = session_object.get("payment_intent")
+            except AttributeError:
+                pass  # Idk why, but developers of StripeObject class decided to remove ability of save getter
+
             async with self.uow:
                 await self.repos.payments_sessions.update_status(
                     checkout.id,
                     status=PaymentSessionStatus.COMPLETED,
-                    payment_intent_id=session_object.get("payment_intent"),
+                    payment_intent_id=payment_intent,
                 )
 
                 await self.repos.users.add_balance(checkout.user_id, checkout.amount)
