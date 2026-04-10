@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from src.core.config import get_config
 from src.core.factories.database import init_db, shutdown_db
 from src.core.factories.redis import init_redis, shutdown_redis
-from src.core.storage.s3 import init_s3, shutdown_s3
+from src.core.factories.s3 import init_s3, shutdown_s3
 
 
 @asynccontextmanager
