@@ -143,14 +143,14 @@ class ListingsService:
                 )
             )
 
+        listing_responses: list[ListingResponse] = []
+        for listing in listings:
+            data = ListingResponse.model_validate(listing)
+            data.images = images_by_listing_id.get(listing.id, [])
+            listing_responses.append(data)
+
         return ListListingsResponse(
-            listings=[
-                (lambda data, imgs: setattr(data, "images", imgs) or data)(
-                    ListingResponse.model_validate(l),
-                    images_by_listing_id.get(l.id, []),
-                )
-                for l in listings
-            ],
+            listings=listing_responses,
             next_cursor=next_cursor,
         )
 
