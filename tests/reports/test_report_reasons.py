@@ -1,6 +1,14 @@
-from sqlalchemy import update
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
+import pytest
+from sqlalchemy import update
+from sqlalchemy.exc import IntegrityError
+
+from src.domains.reports.exceptions import DuplicateReportReasonSlugError
 from src.domains.reports.models import ReportReason
+from src.domains.reports.schemas import ReportReasonCreateRequest
+from src.domains.reports.service import ReportsService
 from src.domains.users.enums import UserRole
 from src.domains.users.models import User
 
@@ -60,6 +68,14 @@ async def _create_reason(
         await session.commit()
         await session.refresh(reason)
         return reason
+
+
+class _DummyUoW:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
 
 
 async def test_list_report_reasons_returns_only_active(client, session_factory):
@@ -171,6 +187,34 @@ async def test_create_report_reason_duplicate_slug_returns_409(client, session_f
 
     assert resp.status_code == 409
     assert resp.json()["detail"] == "Report reason slug already exists"
+
+
+async def test_create_report_reason_translates_integrity_error_to_conflict():
+    get_by_slug = AsyncMock(side_effect=[None, object()])
+    report_reasons_repo = SimpleNamespace(
+        get_by_slug=get_by_slug,
+        create=AsyncMock(
+            side_effect=IntegrityError(
+                "INSERT INTO report_reasons ...",
+                params=None,
+                orig=Exception("duplicate key value violates unique constraint"),
+            )
+        ),
+    )
+    repos = SimpleNamespace(report_reasons=report_reasons_repo, reports=None)
+    service = ReportsService(repos=repos, uow=_DummyUoW())
+    payload = ReportReasonCreateRequest(
+        slug="fraud",
+        title="Fraud",
+        description="Scam or deceptive listing",
+        display_order=1,
+    )
+
+    with pytest.raises(DuplicateReportReasonSlugError):
+        await service.create_reason(payload)
+
+    report_reasons_repo.create.assert_awaited_once_with(**payload.model_dump())
+    assert report_reasons_repo.get_by_slug.await_count == 2
 
 
 async def test_create_report_reason_rejects_reserved_other_slug(

@@ -76,8 +76,13 @@ class ReportsService:
         if await self.report_reasons_repo.get_by_slug(reason_data.slug) is not None:
             raise DuplicateReportReasonSlugError()
 
-        async with self.uow:
-            return await self.report_reasons_repo.create(**reason_data.model_dump())
+        try:
+            async with self.uow:
+                return await self.report_reasons_repo.create(**reason_data.model_dump())
+        except IntegrityError as exc:
+            if await self.report_reasons_repo.get_by_slug(reason_data.slug) is not None:
+                raise DuplicateReportReasonSlugError() from exc
+            raise
 
     async def update_reason(
         self,
