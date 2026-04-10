@@ -109,6 +109,10 @@ Copy `.env.dist` to `.env` and configure the values below.
 | `SERVER__PORT` | no | `8080` | Server port |
 | `SERVER__RELOAD` | no | `false` | Enable auto-reload (dev only) |
 | `SERVER__DEBUG` | no | `false` | Enable debug mode and Swagger UI |
+| `STRIPE__SECRET_KEY` | yes | - | Stripe secret key (`sk_test_...` for dev) |
+| `STRIPE__WEBHOOK_SECRET` | yes | - | Stripe webhook signing secret (`whsec_...`) |
+| `STRIPE__SUCCESS_URL` | yes | - | Redirect URL after successful payment |
+| `STRIPE__CANCEL_URL` | yes | - | Redirect URL after cancelled payment |
 
 > **When running with Docker (`make app-run`):** `SERVER__HOST`, `POSTGRES__HOST`, and `REDIS__HOST` are automatically set to the correct values for the container network - you do not need to change them.
 
@@ -146,6 +150,91 @@ poetry run pytest tests/auth/test_auth.py::test_login -v
 
 Tests use an in-memory SQLite database - no running PostgreSQL required.
 
+## Testing Stripe Locally
+
+Stripe webhooks require a publicly accessible URL. In development, use the **Stripe CLI** to forward events to your local server.
+
+### 1. Install Stripe CLI
+
+```bash
+# macOS
+brew install stripe/stripe-cli/stripe
+
+# Windows and others
+Check the official installation guide: https://stripe.com/docs/stripe-cli#install
+```
+
+### 2. Authenticate
+
+```bash
+stripe login
+```
+
+This opens a browser to authorize the CLI against your Stripe account.
+
+### 3. Forward webhooks to your local server
+
+```bash
+stripe listen --forward-to localhost:8080/api/payments/webhooks/stripe
+```
+
+The CLI prints a webhook signing secret on startup:
+
+```
+> Ready! Your webhook signing secret is whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+Copy that value and set it in `.env`:
+
+```env
+STRIPE__WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+Restart the dev server after updating `.env`. Keep the `stripe listen` process running in a separate terminal - it must stay alive to receive forwarded events.
+
+### 4. Set your Stripe test secret key
+
+In the [Stripe Dashboard](https://dashboard.stripe.com/test/apikeys), copy the **Secret key** from the test environment (`sk_test_...`) and set:
+
+```env
+STRIPE__SECRET_KEY=sk_test_...
+STRIPE__SUCCESS_URL=http://localhost:3000/payment/success
+STRIPE__CANCEL_URL=http://localhost:3000/payment/cancel
+```
+
+### 5. Test the full checkout flow
+
+**Step 1** - Create a checkout session via the API:
+
+```bash
+curl -X POST http://localhost:8080/api/payments/checkout \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 1000}'
+```
+
+The response contains a `checkout_url`. Open it in the browser and complete the payment using Stripe's test card:
+
+| Field | Value |
+|-------|-------|
+| Card number | `4242 4242 4242 4242` |
+| Expiry | any future date |
+| CVC | any 3 digits |
+
+After completing the payment, Stripe sends a `checkout.session.completed` event to the CLI, which forwards it to your server. The user's balance is updated automatically.
+
+### 6. Trigger events manually (without UI)
+
+```bash
+# Simulate a completed payment
+stripe trigger checkout.session.completed
+
+# Simulate an expired session
+stripe trigger checkout.session.expired
+```
+
+> **Note:** Manually triggered events use Stripe-generated test data and will not match sessions created via your API. Use them only to verify webhook handler logic in isolation.
+
 ## Project Structure
 
 ```
@@ -162,7 +251,12 @@ src/
     ├── auth/               # Login, logout, token refresh
     ├── users/              # User profiles
     ├── categories/         # Product category tree
-    └── listings/           # Marketplace listings
+    ├── filter_definitions/ # Per-category custom filter schemas
+    ├── listings/           # Marketplace listings
+    ├── images/             # Image upload and storage (S3)
+    ├── favourites/         # User favourites
+    ├── promotions/         # Promotion packets and listing promotions
+    └── payments/           # Stripe checkout, webhooks, balance transactions
 ```
 
 Each domain follows the pattern: `model.py` → `repository.py` → `service.py` → `router.py`.
@@ -176,7 +270,12 @@ All routes are prefixed with `/api`:
 | `/api/auth` | Authentication (login, logout, refresh) |
 | `/api/users` | User management |
 | `/api/categories` | Category tree |
+| `/api/categories/{id}/filters` | Per-category filter definitions |
 | `/api/listings` | Listings CRUD |
+| `/api/listings/favourites` | User favourites |
+| `/api/listings/promotions` | Listing promotions |
+| `/api/promotions/packets` | Promotion packets |
+| `/api/payments` | Stripe checkout, balance transactions, webhooks |
 
 With `SERVER__DEBUG=true`, interactive docs are available at:
 - Swagger UI: `http://localhost:8080/api/docs`
