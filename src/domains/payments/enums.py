@@ -8,7 +8,6 @@ class TransactionType(StrEnum):
 
 
 class PaymentSessionStatus(StrEnum):
-    CREATED = auto()  # row created, Stripe session not yet requested
-    PENDING = auto()  # Stripe session created, awaiting payment
+    PENDING = auto()
     COMPLETED = auto()
     EXPIRED = auto()

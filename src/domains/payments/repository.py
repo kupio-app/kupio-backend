@@ -41,15 +41,14 @@ class BalanceTransactionRepository(BaseRepository):
 
 class PaymentSessionRepository(BaseRepository):
     async def create(
-        self,
-        *,
-        user_id: UUID,
-        amount: int,
+        self, *, session_id: UUID, user_id: UUID, amount: int, stripe_session_id: str
     ) -> PaymentSession:
         return await self._add(
             PaymentSession,
+            id=session_id,
             user_id=user_id,
             amount=amount,
+            stripe_session_id=stripe_session_id,
         )
 
     async def get_by_stripe_id(self, stripe_session_id: str) -> PaymentSession | None:

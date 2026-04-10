@@ -31,11 +31,9 @@ class PaymentSession(Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     user: M["User"] = relationship("User", lazy="joined")
-    stripe_session_id: M[str | None] = mc(
-        String(255), unique=True, index=True, nullable=True
-    )
+    stripe_session_id: M[str] = mc(String(255), unique=True, index=True)
     stripe_payment_intent_id: M[str | None] = mc(String(255), nullable=True)
     amount: M[Int64]
     status: M[PaymentSessionStatus] = mc(
-        Enum(PaymentSessionStatus), default=PaymentSessionStatus.CREATED
+        Enum(PaymentSessionStatus), default=PaymentSessionStatus.PENDING
     )

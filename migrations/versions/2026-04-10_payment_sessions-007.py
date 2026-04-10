@@ -26,7 +26,7 @@ def upgrade() -> None:
         "payments_sessions",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("user_id", sa.UUID(), nullable=False),
-        sa.Column("stripe_session_id", sa.String(length=255), nullable=True),
+        sa.Column("stripe_session_id", sa.String(length=255), nullable=False),
         sa.Column("stripe_payment_intent_id", sa.String(length=255), nullable=True),
         sa.Column(
             "amount",
@@ -36,7 +36,6 @@ def upgrade() -> None:
         sa.Column(
             "status",
             sa.Enum(
-                "CREATED",
                 "PENDING",
                 "COMPLETED",
                 "EXPIRED",

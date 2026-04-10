@@ -1,3 +1,5 @@
+import uuid
+
 from stripe import StripeClient, Webhook as StripeWebhook, error as stripe_error
 from stripe.params.checkout import SessionCreateParams, SessionCreateParamsLineItem
 
@@ -39,14 +41,9 @@ class PaymentsService:
         )
 
     async def create_checkout_session(
-        self, current_user: User, body: CheckoutRequest
+        self, current_user: User, checkout_req: CheckoutRequest
     ) -> CheckoutResponse:
-        async with self.uow:
-            checkout_row = await self.repos.payments_sessions.create(
-                user_id=current_user.id,
-                amount=body.amount,
-            )
-
+        payment_session_id = uuid.uuid4()
         session = await self.stripe_client.v1.checkout.sessions.create_async(
             SessionCreateParams(
                 mode="payment",
@@ -54,7 +51,7 @@ class PaymentsService:
                     SessionCreateParamsLineItem(
                         price_data={
                             "currency": "eur",
-                            "unit_amount": body.amount,
+                            "unit_amount": checkout_req.amount,
                             "product_data": {"name": "Balance Top-up"},
                         },
                         quantity=1,
@@ -62,18 +59,19 @@ class PaymentsService:
                 ],
                 success_url=self.stripe_config.success_url,
                 cancel_url=self.stripe_config.cancel_url,
-                metadata={"internal_session_id": str(checkout_row.id)},
+                metadata={"internal_session_id": str(payment_session_id)},
             )
         )
 
         async with self.uow:
-            await self.repos.payments_sessions.update_status(
-                checkout_row.id,
-                status=PaymentSessionStatus.PENDING,
+            await self.repos.payments_sessions.create(
+                session_id=payment_session_id,
+                user_id=current_user.id,
+                amount=checkout_req.amount,
                 stripe_session_id=session.id,
             )
 
-        return CheckoutResponse(checkout_url=session.url, session_id=checkout_row.id)
+        return CheckoutResponse(checkout_url=session.url, session_id=payment_session_id)
 
     async def handle_webhook(self, payload: bytes, sig_header: str | None) -> None:
         if sig_header is None:
