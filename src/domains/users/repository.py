@@ -73,18 +73,6 @@ class UsersRepository(BaseRepository):
 
         return await self._get(User, User.id == parsed_id)
 
-    async def get_for_response_by_id_str(self, user_id: str) -> User | None:
-        try:
-            parsed_id = uuid.UUID(user_id)
-        except ValueError:
-            return None
-
-        return await self._get(
-            User,
-            User.id == parsed_id,
-            options=self._response_read_options(),
-        )
-
     async def get_by_email(self, email: str) -> User | None:
         return await self._get(User, User.email == email)
 

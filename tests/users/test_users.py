@@ -245,16 +245,15 @@ async def test_users_repository_separates_lean_and_response_reads(session_factor
         )
         user.avatar_image_id = image.id
         await session.commit()
-        user_id = str(user.id)
 
     async with session_factory() as session:
         repos = Repositories.from_session(session)
-        lean_user = await repos.users.get_by_id_str(user_id)
+        lean_user = await repos.users.get_by_id(user.id)
         assert lean_user is not None
         assert "avatar_image" in inspect(lean_user).unloaded
 
     async with session_factory() as session:
         repos = Repositories.from_session(session)
-        response_user = await repos.users.get_for_response_by_id_str(user_id)
+        response_user = await repos.users.get_for_response_by_id(user.id)
         assert response_user is not None
         assert "avatar_image" not in inspect(response_user).unloaded
