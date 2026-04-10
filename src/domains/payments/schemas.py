@@ -1,7 +1,7 @@
 import datetime
 
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from .enums import TransactionType
 
@@ -13,3 +13,12 @@ class BalanceTransactionResponse(BaseModel):
     amount: int
     type: TransactionType
     created_at: datetime.datetime
+
+
+class CheckoutRequest(BaseModel):
+    amount: int = Field(gt=0)
+
+
+class CheckoutResponse(BaseModel):
+    checkout_url: str
+    session_id: UUID
