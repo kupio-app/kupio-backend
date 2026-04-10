@@ -11,6 +11,7 @@ from src.domains.reports.exceptions import (
     CustomReasonDetailsRequiredError,
     DuplicatePendingListingReportError,
     DuplicateReportReasonSlugError,
+    ListingReportAlreadyResolvedError,
     ListingReportNotFoundError,
     OtherReasonCannotBeDeactivatedError,
     ReportReasonInactiveError,
@@ -21,6 +22,7 @@ from src.domains.reports.models import ListingReport, ReportReason
 from src.domains.reports.schemas import (
     CreatedListingReportResponse,
     ListReportsResponse,
+    ModerateReportRequest,
     ReportDetailResponse,
     ReportListItem,
     ReportListingSummary,
@@ -33,7 +35,7 @@ from src.domains.reports.schemas import (
 )
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
-from .enums import ReportSeenFilter, ReportStatus
+from .enums import ReportDecisionAction, ReportSeenFilter, ReportStatus
 from .repository import ReportReasonsRepository, ReportsRepository
 
 OTHER_REPORT_REASON_SLUG = "other"
@@ -186,6 +188,50 @@ class ReportsService:
 
         return self._build_report_detail_response(report)
 
+    async def moderate_report(
+        self,
+        report: ListingReport,
+        moderator: User,
+        moderation_data: ModerateReportRequest,
+    ) -> ReportDetailResponse:
+        moderated_at = self._utc_now()
+        resolved_status = self._resolve_moderation_status(moderation_data.action)
+
+        async with self.uow:
+            resolved = await self.reports_repo.resolve_pending_by_id(
+                report_id=report.id,
+                status=resolved_status,
+                moderator_id=moderator.id,
+                moderated_at=moderated_at,
+                moderator_comment=moderation_data.comment,
+            )
+            if not resolved:
+                raise ListingReportAlreadyResolvedError()
+
+            if moderation_data.action == ReportDecisionAction.REMOVE_LISTING:
+                await self.repos.listings.soft_delete_by_id(report.listing_id)
+                await self.reports_repo.resolve_pending_for_listing(
+                    listing_id=report.listing_id,
+                    status=ReportStatus.LISTING_REMOVED,
+                    moderator_id=moderator.id,
+                    moderated_at=moderated_at,
+                    moderator_comment=moderation_data.comment,
+                    exclude_report_id=report.id,
+                )
+            elif moderation_data.action == ReportDecisionAction.BAN_USER:
+                await self.repos.users.soft_delete_by_id(report.listing.user_id)
+                await self.repos.listings.soft_delete_by_user_id(report.listing.user_id)
+                await self.reports_repo.resolve_pending_for_user_listings(
+                    user_id=report.listing.user_id,
+                    status=ReportStatus.USER_BANNED,
+                    moderator_id=moderator.id,
+                    moderated_at=moderated_at,
+                    moderator_comment=moderation_data.comment,
+                    exclude_report_id=report.id,
+                )
+
+        return self._build_report_detail_response(await self.get_report(report.id))
+
     def _build_reason_summary(self, reason: ReportReason) -> ReportReasonSummary:
         return ReportReasonSummary(
             id=reason.id,
@@ -306,3 +352,13 @@ class ReportsService:
 
     def _utc_now(self) -> datetime.datetime:
         return datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+
+    def _resolve_moderation_status(
+        self,
+        action: ReportDecisionAction,
+    ) -> ReportStatus:
+        if action == ReportDecisionAction.DECLINE:
+            return ReportStatus.DECLINED
+        if action == ReportDecisionAction.REMOVE_LISTING:
+            return ReportStatus.LISTING_REMOVED
+        return ReportStatus.USER_BANNED

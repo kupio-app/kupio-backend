@@ -66,3 +66,6 @@ class UsersRepository(BaseRepository):
             load_result=False,
             balance=User.balance + amount,
         )
+
+    async def soft_delete_by_id(self, user_id: uuid.UUID) -> bool:
+        return await self._soft_delete(User, User.id == user_id)

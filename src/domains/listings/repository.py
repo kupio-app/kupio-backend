@@ -2,7 +2,7 @@ import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, and_, or_, cast, ColumnElement
+from sqlalchemy import select, and_, or_, cast, ColumnElement, update
 from sqlalchemy.dialects.postgresql import JSONB
 
 from src.core.database.base_repository import BaseRepository
@@ -94,3 +94,18 @@ class ListingsRepository(BaseRepository):
             await self.session.refresh(result, ["category"])
 
         return result
+
+    async def soft_delete_by_id(self, listing_id: UUID) -> bool:
+        return await self._soft_delete(Listing, Listing.id == listing_id)
+
+    async def soft_delete_by_user_id(self, user_id: UUID) -> int:
+        result = await self.session.execute(
+            update(Listing)
+            .where(
+                Listing.user_id == user_id,
+                Listing.deleted_at.is_(None),
+            )
+            .values(deleted_at=datetime.datetime.now(datetime.UTC))
+        )
+        await self.session.flush()
+        return int(getattr(result, "rowcount", 0))

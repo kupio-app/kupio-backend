@@ -14,6 +14,7 @@ from .schemas import (
     CreateListingReportRequest,
     CreatedListingReportResponse,
     ListReportsResponse,
+    ModerateReportRequest,
     ReportDetailResponse,
     ReportReasonCreateRequest,
     ReportReasonResponse,
@@ -99,3 +100,13 @@ async def get_report_detail(
     service: ReportsService = Depends(get_reports_service),
 ):
     return await service.get_report_detail(report, current_user)
+
+
+@router.post("/reports/{report_id}/decision", response_model=ReportDetailResponse)
+async def moderate_report(
+    moderation_data: ModerateReportRequest,
+    report: ListingReport = Depends(get_report_by_id),
+    current_user: User = Depends(require_roles(UserRole.MODERATOR)),
+    service: ReportsService = Depends(get_reports_service),
+):
+    return await service.moderate_report(report, current_user, moderation_data)
