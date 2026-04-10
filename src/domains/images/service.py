@@ -148,18 +148,19 @@ class ImageService:
 
         async with self.uow:
             temporary_sort_order_offset = len(listing_images)
-            for temporary_sort_order, listing_image in enumerate(
-                listing_images, start=temporary_sort_order_offset
-            ):
-                await self.listing_images_repo.update_order(
-                    listing_image.id, temporary_sort_order
+            temporary_ordering_by_id = {
+                listing_image.id: temporary_sort_order
+                for temporary_sort_order, listing_image in enumerate(
+                    listing_images, start=temporary_sort_order_offset
                 )
+            }
+            await self.listing_images_repo.bulk_update_order(temporary_ordering_by_id)
 
-            for sort_order, image_id in enumerate(image_ids):
-                listing_image = listing_images_by_image_id[image_id]
-                await self.listing_images_repo.update_order(
-                    listing_image.id, sort_order
-                )
+            final_ordering_by_id = {
+                listing_images_by_image_id[image_id].id: sort_order
+                for sort_order, image_id in enumerate(image_ids)
+            }
+            await self.listing_images_repo.bulk_update_order(final_ordering_by_id)
 
     async def set_user_avatar(self, user: User, file: UploadFile) -> User:
         content = await file.read()

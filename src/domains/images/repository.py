@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import case, select, update
 
 from src.core.database.base_repository import BaseRepository
 from src.domains.images.models import Image, ListingImage
@@ -80,6 +80,23 @@ class ListingImagesRepository(BaseRepository):
             load_result=False,
             sort_order=sort_order,
         )
+
+    async def bulk_update_order(self, ordering_by_id: dict[UUID, int]) -> None:
+        if not ordering_by_id:
+            return
+
+        stmt = (
+            update(ListingImage)
+            .where(ListingImage.id.in_(ordering_by_id))
+            .values(
+                sort_order=case(
+                    ordering_by_id,
+                    value=ListingImage.id,
+                )
+            )
+        )
+        await self.session.execute(stmt)
+        await self.session.flush()
 
     async def delete(self, listing_image_id: UUID) -> bool:
         return await self._delete(ListingImage, ListingImage.id == listing_image_id)
