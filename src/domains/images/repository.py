@@ -20,11 +20,13 @@ class ImagesRepository(BaseRepository):
 
 
 class ListingImagesRepository(BaseRepository):
+    _SORTING_BY = (ListingImage.sort_order.asc(),)
+
     async def get_by_listing(self, listing_id: UUID) -> list[ListingImage]:
         return await self._get_many(
             ListingImage,
             ListingImage.listing_id == listing_id,
-            order_by=(ListingImage.sort_order.asc(),),
+            order_by=self._SORTING_BY,
         )
 
     async def get_images_for_listing(
