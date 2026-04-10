@@ -66,21 +66,8 @@ class PromotionsService:
         listing: Listing,
         packet_id: int,
     ) -> ListingPromotion:
-        if listing.status != ListingStatus.ACTIVE:
-            raise ListingNotPromotableError()
-
         packet = await self.get_packet(packet_id)
-        if not packet.is_active:
-            raise PromotionPacketInactiveError()
-
-        existing = await self.repos.listing_promotions.get_active_by_listing_and_type(
-            listing.id, packet.type
-        )
-        if existing is not None:
-            raise DuplicateActivePromotionError()
-
-        now = datetime.datetime.now(datetime.UTC)
-        expires_at = now + datetime.timedelta(days=packet.duration_days)
+        await self._validate_purchase(listing, packet)
 
         async with self.uow:
             success = await self.repos.users.deduct_balance(
@@ -95,14 +82,44 @@ class PromotionsService:
                 _type=TransactionType.DEBIT,
             )
 
-            return await self.repos.listing_promotions.create(
-                listing_id=listing.id,
-                packet_id=packet_id,
+            return await self._create_listing_promotion(
+                listing,
+                packet,
                 transaction_id=transaction.id,
-                starts_at=now,
-                expires_at=expires_at,
-                status=PromotionStatus.ACTIVE,
             )
+
+    async def _validate_purchase(
+        self, listing: Listing, packet: PromotionPacket
+    ) -> None:
+        if listing.status != ListingStatus.ACTIVE:
+            raise ListingNotPromotableError()
+
+        if not packet.is_active:
+            raise PromotionPacketInactiveError()
+
+        existing = await self.repos.listing_promotions.get_active_by_listing_and_type(
+            listing.id, packet.type
+        )
+        if existing is not None:
+            raise DuplicateActivePromotionError()
+
+    async def _create_listing_promotion(
+        self,
+        listing: Listing,
+        packet: PromotionPacket,
+        *,
+        transaction_id: UUID,
+    ) -> ListingPromotion:
+        now = datetime.datetime.now(datetime.UTC)
+        expires_at = now + datetime.timedelta(days=packet.duration_days)
+        return await self.repos.listing_promotions.create(
+            listing_id=listing.id,
+            packet_id=packet.id,
+            transaction_id=transaction_id,
+            starts_at=now,
+            expires_at=expires_at,
+            status=PromotionStatus.ACTIVE,
+        )
 
     async def list_for_listing(self, listing: Listing) -> list[ListingPromotion]:
         return await self.repos.listing_promotions.get_active_for_listing(listing.id)
@@ -138,4 +155,5 @@ class PromotionsService:
         promotion = await self.repos.listing_promotions.get_by_id(promotion_id)
         if promotion is None:
             raise ListingPromotionNotFoundError()
+
         return promotion
