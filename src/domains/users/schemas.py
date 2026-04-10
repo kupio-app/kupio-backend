@@ -31,6 +31,7 @@ class UserPrivate(BaseModel):
     email: str
     role: UserRole
     needs_username: bool
+    balance: int
 
 
 class UpdateUserProfile(BaseModel):
