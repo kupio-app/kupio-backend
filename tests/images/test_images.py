@@ -1,12 +1,9 @@
-import itertools
 from uuid import UUID
 
 from sqlalchemy import select
 
 from src.domains.categories.models import Category
 from src.domains.images.models import ListingImage
-
-_cat_id = itertools.count(1)
 
 
 def _auth_header(token: str) -> dict[str, str]:
@@ -31,7 +28,7 @@ async def _register(
 
 async def _create_category(session_factory, *, name: str) -> Category:
     async with session_factory() as session:
-        category = Category(id=next(_cat_id), name=name, depth=0)
+        category = Category(name=name, depth=0)
         session.add(category)
         await session.commit()
         await session.refresh(category)
