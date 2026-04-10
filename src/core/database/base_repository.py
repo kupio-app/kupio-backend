@@ -103,7 +103,7 @@ class BaseRepository:
         result = await self.session.execute(
             update(model)
             .where(*conditions, model.deleted_at.is_(None))
-            .values(deleted_at=datetime.datetime.now(datetime.UTC))
+            .values(deleted_at=datetime.datetime.now(datetime.UTC).replace(tzinfo=None))
         )
         await self.session.flush()
         return bool(getattr(result, "rowcount", 0) > 0)
