@@ -24,7 +24,7 @@ class User(Base, SoftDeleteMixin):
     avatar_image_id: M[UUID | None] = mc(ForeignKey("images.id", ondelete="SET NULL"))
     avatar_image: M[Image | None] = relationship(
         "Image",
-        lazy="select",
+        lazy="raise_on_sql",
         primaryjoin=lambda: and_(
             User.avatar_image_id == Image.id,
             Image.deleted_at.is_(None),

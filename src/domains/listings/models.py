@@ -25,10 +25,10 @@ class Listing(Base, SoftDeleteMixin):
     user_id: M[UUID] = mc(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     user: M["User"] = relationship("User", lazy="joined")
     category_id: M[Int64] = mc(ForeignKey("categories.id"), nullable=False)
-    category: M["Category"] = relationship("Category", lazy="select")
+    category: M["Category"] = relationship("Category", lazy="raise_on_sql")
     images: M[list[ListingImage]] = relationship(
         "ListingImage",
-        lazy="select",
+        lazy="raise_on_sql",
         order_by=lambda: ListingImage.sort_order,
         back_populates="listing",
     )
