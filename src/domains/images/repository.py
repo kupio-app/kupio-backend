@@ -79,5 +79,5 @@ class ListingImagesRepository(BaseRepository):
             sort_order=sort_order,
         )
 
-    async def delete(self, id: UUID) -> bool:
-        return await self._delete(ListingImage, ListingImage.id == id)
+    async def delete(self, listing_image_id: UUID) -> bool:
+        return await self._delete(ListingImage, ListingImage.id == listing_image_id)
