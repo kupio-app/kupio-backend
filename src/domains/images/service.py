@@ -1,7 +1,9 @@
 import io
 import uuid
 
+from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import UploadFile
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 
 from src.core.config import get_config
@@ -103,7 +105,7 @@ class ImageService:
 
                     next_sort_order += 1
 
-        except Exception:
+        except ClientError, BotoCoreError, SQLAlchemyError, OSError:
             for key in uploaded_keys:
                 try:
                     await run_in_threadpool(self.storage.delete_object, key)
@@ -197,7 +199,7 @@ class ImageService:
 
             return user
 
-        except Exception:
+        except ClientError, BotoCoreError, SQLAlchemyError, OSError:
             try:
                 await run_in_threadpool(self.storage.delete_object, s3_key)
             except Exception:
