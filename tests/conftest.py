@@ -35,12 +35,9 @@ async def session_factory(engine):
 
 @pytest_asyncio.fixture(autouse=True)
 async def reset_schema(engine: AsyncEngine):
-    conn = await engine.connect()
-    try:
+    async with engine.begin() as conn:  # type: ignore[attr-defined]
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-    finally:
-        await conn.close()
 
 
 @pytest_asyncio.fixture

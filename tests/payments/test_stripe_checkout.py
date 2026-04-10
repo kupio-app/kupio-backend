@@ -26,7 +26,7 @@ async def _register(client, *, email: str, username: str) -> str:
 
 
 class _FakeCheckoutSessions:
-    async def create_async(self, **kwargs):
+    async def create_async(self, *args, **kwargs):
         return type(
             "PaymentSession",
             (),
@@ -95,7 +95,7 @@ async def test_checkout_webhook_completed_credits_balance(
         }
 
     monkeypatch.setattr(
-        "src.domains.payments.service.stripe.Webhook.construct_event",
+        "src.domains.payments.service.StripeWebhook.construct_event",
         _construct_event,
     )
 
