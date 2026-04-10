@@ -12,6 +12,7 @@ from src.domains.promotions.repository import (
     ListingPromotionsRepository,
     PromotionPacketsRepository,
 )
+from src.domains.reports.repository import ReportReasonsRepository, ReportsRepository
 from src.domains.users.repository import UsersRepository
 
 
@@ -27,6 +28,8 @@ class Repositories:
     balance_transactions: BalanceTransactionRepository
     promotion_packets: PromotionPacketsRepository
     listing_promotions: ListingPromotionsRepository
+    report_reasons: ReportReasonsRepository
+    reports: ReportsRepository
 
     @classmethod
     def from_session(cls, session: AsyncSession) -> "Repositories":
@@ -41,4 +44,6 @@ class Repositories:
             balance_transactions=BalanceTransactionRepository(session=session),
             promotion_packets=PromotionPacketsRepository(session=session),
             listing_promotions=ListingPromotionsRepository(session=session),
+            report_reasons=ReportReasonsRepository(session=session),
+            reports=ReportsRepository(session=session),
         )
