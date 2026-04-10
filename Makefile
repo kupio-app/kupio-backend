@@ -35,6 +35,12 @@ migration:
 migrate:
 	poetry run alembic upgrade head
 
+# Drop and recreate the public schema, then apply all migrations
+.PHONY: db-reset
+db-reset:
+	poetry run python scripts/db_reset.py
+	poetry run alembic upgrade head
+
 # Run dev server locally (requires running services)
 .PHONY: run
 run:

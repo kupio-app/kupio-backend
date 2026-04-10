@@ -130,6 +130,7 @@ make logs              # Follow app container logs
 
 make migrate           # Apply pending Alembic migrations
 make migration message="describe change"  # Autogenerate a new migration
+make db-reset          # Drop and recreate public schema, then apply all migrations
 
 make lint              # Check code style (ruff)
 make reformat          # Auto-fix and format code (ruff)
