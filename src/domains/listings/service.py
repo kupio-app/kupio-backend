@@ -34,7 +34,7 @@ class ListingsService:
         self.uow = uow
         self.storage = storage
 
-    async def _to_listing_response(self, listing: Listing) -> ListingResponse:
+    async def to_listing_response(self, listing: Listing) -> ListingResponse:
         listing_images = await self.listing_images_repo.get_images_for_listing(
             listing.id
         )

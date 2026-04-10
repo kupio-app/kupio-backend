@@ -57,7 +57,7 @@ async def get_listing(
     listing: Listing = Depends(get_listing_by_id),
     service: ListingsService = Depends(get_listings_service),
 ):
-    return await service._to_listing_response(listing)
+    return await service.to_listing_response(listing)
 
 
 @router.post("", response_model=ListingResponse)
@@ -67,7 +67,7 @@ async def create_listing(
     service: ListingsService = Depends(get_listings_service),
 ):
     listing = await service.create_listing(current_user, listing_data)
-    return await service._to_listing_response(listing)
+    return await service.to_listing_response(listing)
 
 
 @router.put("/{listing_id}", response_model=ListingResponse)
@@ -77,7 +77,7 @@ async def update_listing(
     service: ListingsService = Depends(get_listings_service),
 ):
     listing = await service.update_listing(listing, listing_data)
-    return await service._to_listing_response(listing)
+    return await service.to_listing_response(listing)
 
 
 @router.put("/{listing_id}/status", response_model=ListingResponse)
@@ -87,4 +87,4 @@ async def update_listing_status(
     service: ListingsService = Depends(get_listings_service),
 ):
     listing = await service.update_listing_status(listing.id, listing_data.status)
-    return await service._to_listing_response(listing)
+    return await service.to_listing_response(listing)
