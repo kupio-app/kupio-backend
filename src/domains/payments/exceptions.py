@@ -7,3 +7,7 @@ class InsufficientBalanceError(BadRequestError):
 
 class InvalidTopUpAmountError(BadRequestError):
     detail = "Top-up amount must be greater than zero"
+
+
+class WebhookSignatureError(BadRequestError):
+    detail = "Invalid webhook signature"

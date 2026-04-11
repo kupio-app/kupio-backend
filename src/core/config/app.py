@@ -5,6 +5,7 @@ from .postgres import PostgresConfig
 from .redis import RedisConfig
 from .s3 import S3Config
 from .server import ServerConfig
+from .stripe import StripeConfig
 
 
 class AppConfig(BaseModel):
@@ -12,4 +13,5 @@ class AppConfig(BaseModel):
     redis: RedisConfig = Field(default_factory=RedisConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
     auth: AuthConfig = Field(default_factory=AuthConfig)
+    stripe: StripeConfig = Field(default_factory=StripeConfig)
     s3: S3Config = Field(default_factory=S3Config)

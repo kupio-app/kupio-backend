@@ -8,7 +8,10 @@ from src.domains.filter_definitions.repository import FilterDefinitionsRepositor
 from src.domains.favourites.repository import FavouritesRepository
 from src.domains.images.repository import ImagesRepository, ListingImagesRepository
 from src.domains.listings.repository import ListingsRepository
-from src.domains.payments.repository import BalanceTransactionRepository
+from src.domains.payments.repository import (
+    BalanceTransactionRepository,
+    PaymentSessionRepository,
+)
 from src.domains.promotions.repository import (
     ListingPromotionsRepository,
     PromotionPacketsRepository,
@@ -26,6 +29,7 @@ class Repositories:
     filter_definitions: FilterDefinitionsRepository
     favourites: FavouritesRepository
     balance_transactions: BalanceTransactionRepository
+    payments_sessions: PaymentSessionRepository
     promotion_packets: PromotionPacketsRepository
     listing_promotions: ListingPromotionsRepository
     images: ImagesRepository
@@ -42,6 +46,7 @@ class Repositories:
             filter_definitions=FilterDefinitionsRepository(session=session),
             favourites=FavouritesRepository(session=session),
             balance_transactions=BalanceTransactionRepository(session=session),
+            payments_sessions=PaymentSessionRepository(session=session),
             promotion_packets=PromotionPacketsRepository(session=session),
             listing_promotions=ListingPromotionsRepository(session=session),
             images=ImagesRepository(session=session),

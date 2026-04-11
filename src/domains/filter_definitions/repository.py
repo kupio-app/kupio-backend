@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Final
 
 from sqlalchemy import ColumnElement
 
@@ -8,7 +8,7 @@ from .models import FilterDefinition
 
 
 class FilterDefinitionsRepository(BaseRepository):
-    _SORTING_BY: tuple[ColumnElement[Any]] = (FilterDefinition.display_order,)
+    _SORTING_BY: Final[tuple[ColumnElement[Any]]] = (FilterDefinition.display_order,)
 
     async def get_by_id(self, filter_id: int) -> FilterDefinition | None:
         return await self._get(FilterDefinition, FilterDefinition.id == filter_id)
