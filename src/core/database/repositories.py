@@ -6,6 +6,7 @@ from src.domains.auth.repository import OAuthIdentitiesRepository, SessionsRepos
 from src.domains.categories.repository import CategoriesRepository
 from src.domains.filter_definitions.repository import FilterDefinitionsRepository
 from src.domains.favourites.repository import FavouritesRepository
+from src.domains.images.repository import ImagesRepository, ListingImagesRepository
 from src.domains.listings.repository import ListingsRepository
 from src.domains.payments.repository import BalanceTransactionRepository
 from src.domains.promotions.repository import (
@@ -30,6 +31,8 @@ class Repositories:
     listing_promotions: ListingPromotionsRepository
     report_reasons: ReportReasonsRepository
     reports: ReportsRepository
+    images: ImagesRepository
+    listing_images: ListingImagesRepository
 
     @classmethod
     def from_session(cls, session: AsyncSession) -> "Repositories":
@@ -46,4 +49,6 @@ class Repositories:
             listing_promotions=ListingPromotionsRepository(session=session),
             report_reasons=ReportReasonsRepository(session=session),
             reports=ReportsRepository(session=session),
+            images=ImagesRepository(session=session),
+            listing_images=ListingImagesRepository(session=session),
         )

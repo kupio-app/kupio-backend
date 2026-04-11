@@ -1,4 +1,7 @@
 import src.domains.auth.service as auth_service
+from sqlalchemy import inspect
+
+from src.core.database.repositories import Repositories
 
 
 def _auth_header(access_token: str) -> dict[str, str]:
@@ -225,3 +228,32 @@ async def test_set_username_rejects_second_change(client, monkeypatch):
         json={"username": "users-google-2b"},
     )
     assert second.status_code == 400
+
+
+async def test_users_repository_separates_lean_and_response_reads(session_factory):
+    async with session_factory() as session:
+        repos = Repositories.from_session(session)
+        user = await repos.users.create(
+            email="repo-user@example.com",
+            username="repo-user",
+            password_hash="hash",
+        )
+        image = await repos.images.create(
+            s3_key="users/repo-user/avatar/test.png",
+            content_type="image/png",
+            size_bytes=123,
+        )
+        user.avatar_image_id = image.id
+        await session.commit()
+
+    async with session_factory() as session:
+        repos = Repositories.from_session(session)
+        lean_user = await repos.users.get_by_id(user.id)
+        assert lean_user is not None
+        assert "avatar_image" in inspect(lean_user).unloaded
+
+    async with session_factory() as session:
+        repos = Repositories.from_session(session)
+        response_user = await repos.users.get_for_response_by_id(user.id)
+        assert response_user is not None
+        assert "avatar_image" not in inspect(response_user).unloaded

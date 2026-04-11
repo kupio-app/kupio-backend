@@ -37,8 +37,11 @@ async def set_username(
 
 
 @router.get("/me", response_model=UserPrivate)
-async def me(current_user: User = Depends(get_current_user)):
-    return current_user
+async def me(
+    current_user: User = Depends(get_current_user),
+    service: UsersService = Depends(get_users_service),
+):
+    return await service.get_current_user_for_response(current_user.id)
 
 
 @router.get("/me/promotions", response_model=ListPromotionsResponse)

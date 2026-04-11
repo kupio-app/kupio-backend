@@ -17,6 +17,7 @@ import src.domains.favourites.models  # noqa: F401
 import src.domains.payments.models  # noqa: F401
 import src.domains.promotions.models  # noqa: F401
 import src.domains.reports.models  # noqa: F401
+import src.domains.images.models  # noqa: F401
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -54,9 +55,37 @@ async def app(session_factory, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("REDIS__DB", "0")
     monkeypatch.setenv("AUTH__JWT_SECRET", "test-secret")
     monkeypatch.setenv("AUTH__GOOGLE_CLIENT_IDS", '["test-google-client-id"]')
+    monkeypatch.setenv("S3__BUCKET", "test-bucket")
+    monkeypatch.setenv("S3__REGION", "test-region")
+    monkeypatch.setenv("S3__ACCESS_KEY_ID", "test")
+    monkeypatch.setenv("S3__SECRET_ACCESS_KEY", "test")
 
     get_config.cache_clear()
     app = get_app()
+
+    # Tests don't run lifespan startup, so app.state.s3_storage isn't set.
+    # Provide a tiny stub for building public URLs.
+    class _StubS3Storage:
+        def __init__(self, bucket: str, region: str):
+            self._bucket = bucket
+            self._region = region
+
+        def upload_file(self, fileobj, key: str, content_type: str) -> None:
+            return None
+
+        def delete_object(self, key: str) -> None:
+            return None
+
+        def build_public_url(self, key: str) -> str:
+            from urllib.parse import quote
+
+            return (
+                f"https://{self._bucket}.s3.{self._region}.amazonaws.com/"
+                f"{quote(key, safe='/')}"
+            )
+
+    cfg = get_config()
+    app.state.s3_storage = _StubS3Storage(cfg.s3.bucket, cfg.s3.region)
 
     async def _override_get_db_session():
         async with session_factory() as session:
