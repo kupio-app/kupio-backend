@@ -1,5 +1,5 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, WebSocket, Query
 
 from src.core.dependencies import get_current_user
 from src.core.utils.pagination import PaginationParams
@@ -17,6 +17,7 @@ from .schemas import (
     MessageResponse,
     SendMessageRequest,
 )
+from .ws.handler import handle_chat_ws
 
 router = APIRouter()
 
@@ -101,3 +102,16 @@ async def delete_message(
     service: ChatService = Depends(get_chat_service),
 ):
     await service.delete_message(current_user, conversation_id, message_id)
+
+
+@router.websocket("/conversations/{conversation_id}/ws")
+async def chat_ws(
+    websocket: WebSocket,
+    conversation_id: UUID,
+    last_message_id: UUID | None = Query(None),
+):
+    await handle_chat_ws(
+        websocket=websocket,
+        conversation_id=conversation_id,
+        last_message_id=last_message_id,
+    )
