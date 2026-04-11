@@ -13,17 +13,18 @@ class Conversation(Base):
         UniqueConstraint(
             "listing_id", "buyer_id", name="uq_conversation_listing_buyer"
         ),
-        Index("ix_conversations_buyer_id", "buyer_id"),
-        Index("ix_conversations_seller_id", "seller_id"),
-        Index("ix_conversations_listing_id", "listing_id"),
     )
 
     id: M[UUID] = mc(primary_key=True, default=uuid.uuid4)
     listing_id: M[UUID] = mc(
-        ForeignKey("listings.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("listings.id", ondelete="CASCADE"), index=True, nullable=False
     )
-    buyer_id: M[UUID] = mc(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    seller_id: M[UUID] = mc(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    buyer_id: M[UUID] = mc(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    seller_id: M[UUID] = mc(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
 
     messages: M[list["Message"]] = relationship(
         "Message", back_populates="conversation", lazy="noload"
