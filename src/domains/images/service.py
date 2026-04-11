@@ -35,6 +35,11 @@ class ImageService:
         self.uow = uow
         self.storage = storage
 
+    @staticmethod
+    def _is_missing_s3_object(exc: ClientError) -> bool:
+        error_code = exc.response.get("Error", {}).get("Code")
+        return error_code in {"404", "NoSuchKey", "NotFound"}
+
     async def upload_listing_images(
         self,
         listing_id: UUID,
@@ -161,6 +166,30 @@ class ImageService:
             }
             await self.listing_images_repo.bulk_update_order(final_ordering_by_id)
 
+    async def download_listing_image(
+        self, listing_id: UUID, image_id: UUID
+    ) -> tuple[bytes, str]:
+        listing_image = await self.listing_images_repo.get_by_listing_and_image(
+            listing_id, image_id
+        )
+        if listing_image is None:
+            raise ListingImageNotFoundError()
+
+        image = await self.image_repo.get_by_id(image_id)
+        if image is None:
+            raise ListingImageNotFoundError()
+
+        try:
+            content = await run_in_threadpool(
+                self.storage.download_object, image.s3_key
+            )
+        except ClientError as exc:
+            if self._is_missing_s3_object(exc):
+                raise ListingImageNotFoundError()
+            raise
+
+        return content, image.content_type
+
     async def set_user_avatar(self, user: User, file: UploadFile) -> User:
         content = await file.read()
         size_bytes = len(content)
@@ -219,3 +248,23 @@ class ImageService:
             await self.user_repo.update(user.id, avatar_image_id=None)
 
             await self.image_repo.delete(old_avatar_image_id)
+
+    async def download_user_avatar(self, username: str) -> tuple[bytes, str]:
+        user = await self.user_repo.get_by_username(username)
+        if user is None or user.avatar_image_id is None:
+            raise UserAvatarNotFoundError()
+
+        image = await self.image_repo.get_by_id(user.avatar_image_id)
+        if image is None:
+            raise UserAvatarNotFoundError()
+
+        try:
+            content = await run_in_threadpool(
+                self.storage.download_object, image.s3_key
+            )
+        except ClientError as exc:
+            if self._is_missing_s3_object(exc):
+                raise UserAvatarNotFoundError()
+            raise
+
+        return content, image.content_type

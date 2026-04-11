@@ -30,5 +30,13 @@ class S3StorageService:
             Key=key,
         )
 
+    def download_object(self, key: str) -> bytes:
+        response = self._client.get_object(Bucket=self._bucket, Key=key)
+        body = response["Body"]
+        try:
+            return body.read()
+        finally:
+            body.close()
+
     def close(self):
         self._client.close()

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, Response, UploadFile, File
 from starlette import status
 
 from src.core.database.base_model import UUID
@@ -52,6 +52,16 @@ async def update_listing_images_order(
     return await service.reorder_listing_images(listing.id, payload.image_ids)
 
 
+@router.get("/listings/{listing_id}/images/{image_id}/download")
+async def download_listing_image(
+    listing_id: UUID,
+    image_id: UUID,
+    service: ImageService = Depends(get_images_service),
+) -> Response:
+    content, content_type = await service.download_listing_image(listing_id, image_id)
+    return Response(content=content, media_type=content_type)
+
+
 @router.put("/users/me/avatar", response_model=UserPrivate)
 async def set_avatar(
     file: UploadFile = File(...),
@@ -59,6 +69,15 @@ async def set_avatar(
     current_user: User = Depends(get_current_user),
 ):
     return await service.set_user_avatar(current_user, file)
+
+
+@router.get("/users/{username}/avatar/download")
+async def download_user_avatar(
+    username: str,
+    service: ImageService = Depends(get_images_service),
+) -> Response:
+    content, content_type = await service.download_user_avatar(username)
+    return Response(content=content, media_type=content_type)
 
 
 @router.delete("/users/me/avatar", status_code=status.HTTP_204_NO_CONTENT)

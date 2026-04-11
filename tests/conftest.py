@@ -66,25 +66,21 @@ async def app(session_factory, monkeypatch: pytest.MonkeyPatch):
     app = get_app()
 
     # Tests don't run lifespan startup, so app.state.s3_storage isn't set.
-    # Provide a tiny stub for building public URLs.
+    # Provide a tiny in-memory storage stub.
     class _StubS3Storage:
         def __init__(self, bucket: str, region: str):
             self._bucket = bucket
             self._region = region
+            self._objects: dict[str, bytes] = {}
 
         def upload_file(self, fileobj, key: str, content_type: str) -> None:
-            return None
+            self._objects[key] = fileobj.read()
 
         def delete_object(self, key: str) -> None:
-            return None
+            self._objects.pop(key, None)
 
-        def build_public_url(self, key: str) -> str:
-            from urllib.parse import quote
-
-            return (
-                f"https://{self._bucket}.s3.{self._region}.amazonaws.com/"
-                f"{quote(key, safe='/')}"
-            )
+        def download_object(self, key: str) -> bytes:
+            return self._objects[key]
 
     cfg = get_config()
     app.state.s3_storage = _StubS3Storage(cfg.s3.bucket, cfg.s3.region)
