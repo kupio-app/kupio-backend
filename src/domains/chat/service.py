@@ -1,22 +1,23 @@
 from uuid import UUID
 
-from redis.asyncio import Redis
-
 from src.worker import send_fcm_push
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
 from src.core.utils.pagination import decode_cursor, encode_cursor
-from src.core.utils import mjson
-from src.domains.chat.enums import ConversationRole
-from src.domains.chat.exceptions import (
+from src.domains.listings.models import Listing
+from src.domains.users.models import User
+
+from .enums import ConversationRole
+from .exceptions import (
     CannotMessageOwnListingError,
     ConversationNotFoundError,
     MessageNotFoundError,
     MessageNotOwnedError,
     NotConversationParticipantError,
 )
-from src.domains.chat.models import Conversation, Message
-from src.domains.chat.schemas import (
+from .models import Conversation, Message
+from .redis import ChatRedisManager
+from .schemas import (
     ConversationResponse,
     DeviceTokenResponse,
     ListConversationsResponse,
@@ -24,15 +25,15 @@ from src.domains.chat.schemas import (
     MessageResponse,
     RegisterDeviceTokenRequest,
 )
-from src.domains.listings.models import Listing
-from src.domains.users.models import User
 
 
 class ChatService:
-    def __init__(self, repos: Repositories, uow: UoW, redis: Redis) -> None:
+    def __init__(
+        self, repos: Repositories, uow: UoW, chat_redis: ChatRedisManager
+    ) -> None:
         self.repos = repos
         self.uow = uow
-        self.redis = redis
+        self.chat_redis = chat_redis
 
     async def get_or_create_conversation(
         self, current_user: User, listing: Listing
@@ -104,7 +105,7 @@ class ChatService:
                 body=body,
             )
 
-        await self._publish_message(msg)
+        await self.chat_redis.publish_message(msg)
         await self._maybe_enqueue_push(conv, msg, current_user.id)
         return msg
 
@@ -124,7 +125,7 @@ class ChatService:
         async with self.uow:
             await self.repos.messages.soft_delete(message_id)
 
-        await self._publish_deletion(conversation_id, message_id)
+        await self.chat_redis.publish_deletion(conversation_id, message_id)
 
     async def list_messages(
         self,
@@ -152,25 +153,11 @@ class ChatService:
             next_cursor=next_cursor,
         )
 
-    async def _publish_message(self, msg: Message) -> None:
-        channel = f"chat:conversation:{msg.conversation_id}"
-        payload = MessageResponse.model_validate(msg).model_dump_json()
-        await self.redis.publish(channel, payload)
-
-    async def _publish_deletion(self, conversation_id: UUID, message_id: UUID) -> None:
-        channel = f"chat:conversation:{conversation_id}"
-        payload = mjson.encode(
-            {"type": "message_deleted", "message_id": str(message_id)}
-        )
-        await self.redis.publish(channel, payload)
-
     async def _maybe_enqueue_push(
         self, conv: Conversation, msg: Message, sender_id: UUID
     ) -> None:
         recipient_id = conv.seller_id if sender_id == conv.buyer_id else conv.buyer_id
-        presence_key = f"chat:presence:{conv.id}:{recipient_id}"
-        is_online = await self.redis.exists(presence_key)
-        if not is_online:
+        if not await self.chat_redis.is_online(conv.id, recipient_id):
             await send_fcm_push.enqueue(
                 str(recipient_id),
                 str(conv.id),

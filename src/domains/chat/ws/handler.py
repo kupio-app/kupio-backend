@@ -6,7 +6,6 @@ from uuid import UUID
 from fastapi import WebSocket, WebSocketDisconnect
 from jose import ExpiredSignatureError, JWTError
 from pydantic import BaseModel
-from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.core.config import get_config
@@ -14,6 +13,7 @@ from src.core.database.repositories import Repositories
 from src.core.security import decode_access_token
 
 from ..consts import PRESENCE_TTL, WS_AUTH_TIMEOUT
+from ..redis import ChatRedisManager
 from ..schemas import MessageResponse
 from .messages import WsAuthOkMessage, WsErrorMessage, WsPongMessage
 
@@ -43,12 +43,11 @@ class ChatWebSocketSession:
         self.websocket = websocket
         self.conversation_id = conversation_id
         self.last_message_id = last_message_id
-        self.presence_key = ""
-        self.channel = f"chat:conversation:{conversation_id}"
+        self._user_id: UUID | None = None  # set after successful auth
 
     @property
-    def redis(self) -> Redis:
-        return self.websocket.app.state.redis
+    def chat_redis(self) -> ChatRedisManager:
+        return ChatRedisManager(self.websocket.app.state.redis)
 
     @property
     def session_factory(self) -> async_sessionmaker[AsyncSession]:
@@ -120,8 +119,8 @@ class ChatWebSocketSession:
             await self._send(WsAuthOkMessage(conversation_id=self.conversation_id))
             await self._replay_missed_messages(repos)
 
-        self.presence_key = f"chat:presence:{self.conversation_id}:{user_id}"
-        await self.redis.setex(self.presence_key, PRESENCE_TTL, "1")
+        self._user_id = user_id
+        await self.chat_redis.set_presence(self.conversation_id, user_id)
         return True
 
     async def _check_participant(self, repos: Repositories, user_id: UUID) -> bool:
@@ -151,8 +150,9 @@ class ChatWebSocketSession:
             await self._send(MessageResponse.model_validate(msg))
 
     async def _run_message_loop(self) -> None:
-        pubsub = self.redis.pubsub()
-        await pubsub.subscribe(self.channel)
+        channel = ChatRedisManager.conversation_channel(self.conversation_id)
+        pubsub = self.chat_redis.pubsub()
+        await pubsub.subscribe(channel)
 
         presence_task = asyncio.create_task(self._refresh_presence())
         forward_task = asyncio.create_task(self._forward_redis_to_ws(pubsub))
@@ -162,9 +162,9 @@ class ChatWebSocketSession:
         finally:
             presence_task.cancel()
             forward_task.cancel()
-            await pubsub.unsubscribe(self.channel)
+            await pubsub.unsubscribe(channel)
             await pubsub.aclose()
-            await self.redis.delete(self.presence_key)
+            await self.chat_redis.delete_presence(self.conversation_id, self._user_id)
 
     async def _receive_client_messages(self) -> None:
         while True:
@@ -184,7 +184,7 @@ class ChatWebSocketSession:
     async def _refresh_presence(self) -> None:
         while True:
             await asyncio.sleep(PRESENCE_TTL // 2)
-            await self.redis.setex(self.presence_key, PRESENCE_TTL, "1")
+            await self.chat_redis.refresh_presence(self.conversation_id, self._user_id)
 
     async def _forward_redis_to_ws(self, pubsub) -> None:
         async for message in pubsub.listen():
