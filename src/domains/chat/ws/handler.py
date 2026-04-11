@@ -1,0 +1,205 @@
+import asyncio
+import json
+import logging
+from uuid import UUID
+
+from fastapi import WebSocket, WebSocketDisconnect
+from jose import ExpiredSignatureError, JWTError
+from pydantic import BaseModel
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from src.core.config import get_config
+from src.core.database.repositories import Repositories
+from src.core.security import decode_access_token
+
+from ..consts import PRESENCE_TTL, WS_AUTH_TIMEOUT
+from ..schemas import MessageResponse
+from .messages import WsAuthOkMessage, WsErrorMessage, WsPongMessage
+
+logger = logging.getLogger(__name__)
+
+
+async def handle_chat_ws(
+    websocket: WebSocket,
+    conversation_id: UUID,
+    last_message_id: UUID | None,
+) -> None:
+    session = ChatWebSocketSession(
+        websocket=websocket,
+        conversation_id=conversation_id,
+        last_message_id=last_message_id,
+    )
+    await session.run()
+
+
+class ChatWebSocketSession:
+    def __init__(
+        self,
+        websocket: WebSocket,
+        conversation_id: UUID,
+        last_message_id: UUID | None,
+    ) -> None:
+        self.websocket = websocket
+        self.conversation_id = conversation_id
+        self.last_message_id = last_message_id
+        self.presence_key = ""
+        self.channel = f"chat:conversation:{conversation_id}"
+
+    @property
+    def redis(self) -> Redis:
+        return self.websocket.app.state.redis
+
+    @property
+    def session_factory(self) -> async_sessionmaker[AsyncSession]:
+        return self.websocket.app.state.db_session_factory
+
+    async def run(self) -> None:
+        await self.websocket.accept()
+
+        user_id = await self._authenticate()
+        if user_id is None:
+            return
+
+        authorized = await self._authorize_and_init(user_id)
+        if not authorized:
+            return
+
+        await self._run_message_loop()
+
+    async def _authenticate(self) -> UUID | None:
+        """Read the auth message and return the validated user_id, or close and return None."""
+        token = await self._receive_token()
+        if token is None:
+            return None
+
+        return await self._decode_token(token)
+
+    async def _receive_token(self) -> str | None:
+        try:
+            raw = await asyncio.wait_for(
+                self.websocket.receive_text(), timeout=WS_AUTH_TIMEOUT
+            )
+            msg = json.loads(raw)
+            if msg.get("type") != "auth" or not msg.get("token"):
+                await self._close_with_error(WsErrorMessage(code="invalid_token"), 4001)
+                return None
+
+            return msg["token"]
+        except asyncio.TimeoutError:
+            await self._close_with_error(WsErrorMessage(code="auth_timeout"), 4001)
+            return None
+        except json.JSONDecodeError, WebSocketDisconnect:
+            await self._close_with_error(WsErrorMessage(code="invalid_token"), 4001)
+            return None
+
+    async def _decode_token(self, token: str) -> UUID | None:
+        config = get_config()
+        try:
+            user_id_str = decode_access_token(token=token, config=config.auth)
+            return UUID(user_id_str)
+        except ExpiredSignatureError:
+            await self._close_with_error(WsErrorMessage(code="token_expired"), 4001)
+            return None
+        except JWTError, ValueError:
+            await self._close_with_error(WsErrorMessage(code="invalid_token"), 4001)
+            return None
+
+    async def _authorize_and_init(self, user_id: UUID) -> bool:
+        """
+        Verify the user is a conversation participant, update device token timestamps,
+        send auth_ok, and replay any missed messages. Returns False if access is denied.
+        """
+        async with self.session_factory() as session:
+            repos = Repositories.from_session(session)
+
+            if not await self._check_participant(repos, user_id):
+                return False
+
+            await self._touch_device_tokens(repos, session, user_id)
+            await self._send(WsAuthOkMessage(conversation_id=self.conversation_id))
+            await self._replay_missed_messages(repos)
+
+        self.presence_key = f"chat:presence:{self.conversation_id}:{user_id}"
+        await self.redis.setex(self.presence_key, PRESENCE_TTL, "1")
+        return True
+
+    async def _check_participant(self, repos: Repositories, user_id: UUID) -> bool:
+        conv = await repos.conversations.get_by_id(self.conversation_id)
+        if conv is None or user_id not in (conv.buyer_id, conv.seller_id):
+            await self._close_with_error(WsErrorMessage(code="forbidden"), 4003)
+            return False
+
+        return True
+
+    async def _touch_device_tokens(
+        self, repos: Repositories, session: AsyncSession, user_id: UUID
+    ) -> None:
+        tokens = await repos.device_tokens.get_tokens_for_user(user_id)
+        if tokens:
+            for dt in tokens:
+                await repos.device_tokens.touch_last_seen(dt.id)
+            await session.commit()
+
+    async def _replay_missed_messages(self, repos: Repositories) -> None:
+        if self.last_message_id is None:
+            return
+        missed = await repos.messages.get_messages_after(
+            self.conversation_id, self.last_message_id
+        )
+        for msg in missed:
+            await self._send(MessageResponse.model_validate(msg))
+
+    async def _run_message_loop(self) -> None:
+        pubsub = self.redis.pubsub()
+        await pubsub.subscribe(self.channel)
+
+        presence_task = asyncio.create_task(self._refresh_presence())
+        forward_task = asyncio.create_task(self._forward_redis_to_ws(pubsub))
+
+        try:
+            await self._receive_client_messages()
+        finally:
+            presence_task.cancel()
+            forward_task.cancel()
+            await pubsub.unsubscribe(self.channel)
+            await pubsub.aclose()
+            await self.redis.delete(self.presence_key)
+
+    async def _receive_client_messages(self) -> None:
+        while True:
+            try:
+                raw = await self.websocket.receive_text()
+                msg = json.loads(raw)
+                if msg.get("type") == "ping":
+                    await self._send(WsPongMessage())
+            except WebSocketDisconnect:
+                break
+            except json.JSONDecodeError:
+                logger.warning(
+                    "Malformed WS message in conversation %s", self.conversation_id
+                )
+                # Keep the connection alive, just skip the bad frame
+
+    async def _refresh_presence(self) -> None:
+        while True:
+            await asyncio.sleep(PRESENCE_TTL // 2)
+            await self.redis.setex(self.presence_key, PRESENCE_TTL, "1")
+
+    async def _forward_redis_to_ws(self, pubsub) -> None:
+        async for message in pubsub.listen():
+            if message["type"] != "message":
+                continue
+
+            data = message["data"]
+            if isinstance(data, bytes):
+                data = data.decode()
+
+            await self.websocket.send_text(data)
+
+    async def _send(self, msg: BaseModel) -> None:
+        await self.websocket.send_text(msg.model_dump_json())
+
+    async def _close_with_error(self, msg: WsErrorMessage, close_code: int) -> None:
+        await self._send(msg)
+        await self.websocket.close(code=close_code)
