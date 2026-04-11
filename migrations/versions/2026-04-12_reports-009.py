@@ -170,6 +170,9 @@ def downgrade() -> None:
     op.drop_index("ix_listing_reports_reporter_id", table_name="listing_reports")
     op.drop_index("ix_listing_reports_listing_id", table_name="listing_reports")
     op.drop_table("listing_reports")
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        op.execute('DROP TYPE "reportstatus"')
     op.drop_index(
         "ix_report_reasons_active_display_order_id", table_name="report_reasons"
     )
