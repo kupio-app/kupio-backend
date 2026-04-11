@@ -19,7 +19,7 @@ class User(Base, SoftDeleteMixin):
     last_name: M[str | None] = mc(String(100))
     password_hash: M[str | None] = mc(String(512))
     role: M[UserRole] = mc(Enum(UserRole), default=UserRole.USER)
-    balance: M[Int64] = mc(default=0)
+    balance: M[Int64] = mc(default=0)  # balance in cents
 
     @property
     def display_name(self) -> str | None:

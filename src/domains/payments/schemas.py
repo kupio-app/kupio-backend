@@ -16,7 +16,7 @@ class BalanceTransactionResponse(BaseModel):
 
 
 class CheckoutRequest(BaseModel):
-    amount: int = Field(gt=0)
+    amount: int = Field(gt=0, description="Amount in cents to top up the balance")
 
 
 class CheckoutResponse(BaseModel):
