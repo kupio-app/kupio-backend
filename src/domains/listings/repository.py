@@ -2,7 +2,7 @@ import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, and_, or_, cast, ColumnElement, update
+from sqlalchemy import select, and_, or_, cast, ColumnElement, update, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import selectinload
 
@@ -130,7 +130,7 @@ class ListingsRepository(BaseRepository):
                 Listing.user_id == user_id,
                 Listing.deleted_at.is_(None),
             )
-            .values(deleted_at=datetime.datetime.now(datetime.UTC))
+            .values(deleted_at=func.now())
         )
         await self.session.flush()
         return int(getattr(result, "rowcount", 0))
