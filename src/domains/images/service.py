@@ -1,5 +1,4 @@
 import io
-import uuid
 
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import UploadFile
@@ -14,7 +13,6 @@ from src.core.storage.s3 import S3StorageService
 from src.domains.images.consts import (
     MAX_IMAGE_SIZE_BYTES,
     ALLOWED_CONTENT_TYPES,
-    CONTENT_TYPE_TO_EXTENSION,
 )
 from src.domains.images.exceptions import (
     ImageMaxSizeError,
@@ -24,6 +22,7 @@ from src.domains.images.exceptions import (
     UserAvatarNotFoundError,
 )
 from src.domains.images.schemas import ListingImageResponse
+from src.domains.images.utils import build_avatar_key, build_listing_image_key
 from src.domains.users.models import User
 
 
@@ -220,13 +219,3 @@ class ImageService:
             await self.user_repo.update(user.id, avatar_image_id=None)
 
             await self.image_repo.delete(old_avatar_image_id)
-
-
-def build_listing_image_key(listing_id: UUID, content_type: str) -> str:
-    ext = CONTENT_TYPE_TO_EXTENSION[content_type]
-    return f"listings/{listing_id}/{uuid.uuid4()}.{ext}"
-
-
-def build_avatar_key(user_id: UUID, content_type: str) -> str:
-    ext = CONTENT_TYPE_TO_EXTENSION[content_type]
-    return f"users/{user_id}/avatar/{uuid.uuid4()}.{ext}"
