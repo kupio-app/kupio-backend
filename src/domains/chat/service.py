@@ -25,6 +25,7 @@ from .schemas import (
     MessageResponse,
     RegisterDeviceTokenRequest,
 )
+from .utils import generate_message_preview
 
 
 class ChatService:
@@ -161,7 +162,7 @@ class ChatService:
             await send_fcm_push.enqueue(
                 str(recipient_id),
                 str(conv.id),
-                msg.body[:100] if msg.body else "",
+                generate_message_preview(msg),
             )
 
 
