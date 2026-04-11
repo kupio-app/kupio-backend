@@ -3,8 +3,6 @@ import datetime
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from .enums import DevicePlatform
-
 
 class ConversationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -43,16 +41,3 @@ class ListMessagesResponse(BaseModel):
 
 class SendMessageRequest(BaseModel):
     body: str = Field(min_length=1, max_length=4000)
-
-
-class RegisterDeviceTokenRequest(BaseModel):
-    token: str = Field(min_length=1, max_length=512)
-    platform: DevicePlatform
-
-
-class DeviceTokenResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    platform: DevicePlatform
-    last_seen_at: datetime.datetime

@@ -2,16 +2,16 @@ from sqlalchemy.exc import IntegrityError
 
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
+
 from .exceptions import (
     UserNotFoundError,
     UserPhoneConflictError,
     UserUsernameConflictError,
     UsernameAlreadySetError,
 )
-from .models import User
-
+from .models import User, DeviceToken
 from .repository import UsersRepository
-from .schemas import SetUsernameRequest, UpdateUserProfile
+from .schemas import SetUsernameRequest, UpdateUserProfile, RegisterDeviceTokenRequest
 
 
 class UsersService:
@@ -60,3 +60,19 @@ class UsersService:
                 )
         except IntegrityError:
             raise UserUsernameConflictError()
+
+
+class DeviceTokenService:
+    def __init__(self, repos: Repositories, uow: UoW) -> None:
+        self.repos = repos
+        self.uow = uow
+
+    async def register_token(
+        self, current_user: User, req: RegisterDeviceTokenRequest
+    ) -> DeviceToken:
+        async with self.uow:
+            return await self.repos.device_tokens.upsert(
+                user_id=current_user.id,
+                token=req.token,
+                platform=req.platform,
+            )

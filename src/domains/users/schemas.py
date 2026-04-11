@@ -1,10 +1,11 @@
 import re
 import uuid
+import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_extra_types.phone_numbers import PhoneNumber
 
-from src.domains.users.enums import UserRole
+from .enums import UserRole, DevicePlatform
 
 
 def validate_username_format(v: str) -> str:
@@ -57,3 +58,16 @@ class SetUsernameRequest(BaseModel):
     @classmethod
     def username_valid(cls, v: str) -> str:
         return validate_username_format(v)
+
+
+class RegisterDeviceTokenRequest(BaseModel):
+    token: str = Field(min_length=1, max_length=512)
+    platform: DevicePlatform
+
+
+class DeviceTokenResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    platform: DevicePlatform
+    last_seen_at: datetime.datetime

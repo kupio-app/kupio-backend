@@ -1,13 +1,10 @@
 import uuid
-import datetime
 
-from sqlalchemy import String, ForeignKey, UniqueConstraint, Index, Enum, DateTime, func
+from sqlalchemy import String, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import Mapped as M, mapped_column as mc, relationship
 
 from src.core.database.base_model import Base, UUID
 from src.core.database.mixins import SoftDeleteMixin
-
-from .enums import DevicePlatform
 
 
 class Conversation(Base):
@@ -53,19 +50,3 @@ class Message(Base, SoftDeleteMixin):
     conversation: M["Conversation"] = relationship(
         "Conversation", back_populates="messages", lazy="noload"
     )
-
-
-class DeviceToken(Base):
-    __tablename__ = "device_tokens"
-    __table_args__ = (
-        UniqueConstraint(
-            "user_id", "platform", "token", name="uq_device_token_user_platform_token"
-        ),
-        Index("ix_device_tokens_user_id", "user_id"),
-    )
-
-    id: M[UUID] = mc(primary_key=True, default=uuid.uuid4)
-    user_id: M[UUID] = mc(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    token: M[str] = mc(String(512), nullable=False)
-    platform: M[DevicePlatform] = mc(Enum(DevicePlatform), nullable=False)
-    last_seen_at: M[datetime.datetime] = mc(DateTime(timezone=True), default=func.now())

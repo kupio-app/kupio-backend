@@ -4,11 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.auth.repository import OAuthIdentitiesRepository, SessionsRepository
 from src.domains.categories.repository import CategoriesRepository
-from src.domains.chat.repository import (
-    ConversationsRepository,
-    DeviceTokensRepository,
-    MessagesRepository,
-)
+from src.domains.chat.repository import ConversationsRepository, MessagesRepository
 from src.domains.filter_definitions.repository import FilterDefinitionsRepository
 from src.domains.favourites.repository import FavouritesRepository
 from src.domains.listings.repository import ListingsRepository
@@ -17,7 +13,7 @@ from src.domains.promotions.repository import (
     ListingPromotionsRepository,
     PromotionPacketsRepository,
 )
-from src.domains.users.repository import UsersRepository
+from src.domains.users.repository import UsersRepository, DeviceTokensRepository
 
 
 @dataclass(slots=True)

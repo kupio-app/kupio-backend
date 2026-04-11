@@ -15,14 +15,13 @@ from .exceptions import (
     MessageNotOwnedError,
     NotConversationParticipantError,
 )
-from .models import Conversation, Message, DeviceToken
+from .models import Conversation, Message
 from .redis import ChatRedisManager
 from .schemas import (
     ConversationResponse,
     ListConversationsResponse,
     ListMessagesResponse,
     MessageResponse,
-    RegisterDeviceTokenRequest,
 )
 from .utils import generate_message_preview
 
@@ -162,20 +161,4 @@ class ChatService:
                 str(recipient_id),
                 str(conv.id),
                 generate_message_preview(msg),
-            )
-
-
-class DeviceTokenService:
-    def __init__(self, repos: Repositories, uow: UoW) -> None:
-        self.repos = repos
-        self.uow = uow
-
-    async def register_token(
-        self, current_user: User, req: RegisterDeviceTokenRequest
-    ) -> DeviceToken:
-        async with self.uow:
-            return await self.repos.device_tokens.upsert(
-                user_id=current_user.id,
-                token=req.token,
-                platform=req.platform,
             )
