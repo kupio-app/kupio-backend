@@ -20,6 +20,7 @@ class UserPublic(BaseModel):
     id: uuid.UUID
     username: str
     display_name: str | None
+    avatar_url: str | None = None
 
 
 class UserPrivate(BaseModel):
@@ -32,6 +33,7 @@ class UserPrivate(BaseModel):
     role: UserRole
     needs_username: bool
     balance: int  # balance in cents
+    avatar_url: str | None = None
 
 
 class UpdateUserProfile(BaseModel):

@@ -10,7 +10,7 @@ from .enums import ListingStatus
 from .exceptions import ListingNotFoundError
 from .models import Listing
 from .repository import ListingsRepository
-from .schemas import ListListingsResponse, ListingResponse, ListingRequest
+from .schemas import ListListingsResponse, ListingRequest, ListingResponse
 
 
 class ListingsService:
@@ -107,13 +107,22 @@ class ListingsService:
             if len(listings) == limit
             else None
         )
+
         return ListListingsResponse(
-            listings=[ListingResponse.model_validate(x) for x in listings],
+            listings=[ListingResponse.model_validate(listing) for listing in listings],
             next_cursor=next_cursor,
         )
 
     async def get_listing(self, listing_id: UUID) -> Listing:
         if (listing := await self.listings_repo.get_by_id(listing_id)) is None:
+            raise ListingNotFoundError()
+
+        return listing
+
+    async def get_listing_for_response(self, listing_id: UUID) -> Listing:
+        if (
+            listing := await self.listings_repo.get_for_response_by_id(listing_id)
+        ) is None:
             raise ListingNotFoundError()
 
         return listing

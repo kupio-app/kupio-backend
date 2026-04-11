@@ -1,5 +1,7 @@
 import uuid
 
+from sqlalchemy.orm import selectinload
+
 from src.core.database.base_repository import BaseRepository
 from .enums import UserRole
 
@@ -7,6 +9,10 @@ from .models import User
 
 
 class UsersRepository(BaseRepository):
+    @staticmethod
+    def _response_read_options():
+        return (selectinload(User.avatar_image),)
+
     async def create(
         self,
         *,
@@ -30,11 +36,34 @@ class UsersRepository(BaseRepository):
     async def get_by_username(self, username: str) -> User | None:
         return await self._get(User, User.username == username)
 
+    async def get_for_response_by_username(self, username: str) -> User | None:
+        return await self._get(
+            User,
+            User.username == username,
+            options=self._response_read_options(),
+        )
+
     async def get_by_phone(self, phone: str) -> User | None:
         return await self._get(User, User.phone == phone)
 
-    async def get_by_id(self, user_id: uuid.UUID) -> User | None:
-        return await self._get(User, User.id == user_id)
+    async def get_by_id(
+        self, user_id: uuid.UUID, *, populate_existing: bool = False
+    ) -> User | None:
+        return await self._get(
+            User,
+            User.id == user_id,
+            populate_existing=populate_existing,
+        )
+
+    async def get_for_response_by_id(
+        self, user_id: uuid.UUID, *, populate_existing: bool = False
+    ) -> User | None:
+        return await self._get(
+            User,
+            User.id == user_id,
+            options=self._response_read_options(),
+            populate_existing=populate_existing,
+        )
 
     async def get_by_id_str(self, user_id: str) -> User | None:
         try:
@@ -48,7 +77,8 @@ class UsersRepository(BaseRepository):
         return await self._get(User, User.email == email)
 
     async def update(self, user_id: uuid.UUID, **kwargs) -> User:
-        return await self._update(User, [User.id == user_id], **kwargs)
+        await self._update(User, [User.id == user_id], load_result=False, **kwargs)
+        return await self.get_for_response_by_id(user_id, populate_existing=True)
 
     async def deduct_balance(self, user_id: uuid.UUID, amount: int) -> bool:
         result = await self._update(

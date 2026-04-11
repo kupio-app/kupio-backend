@@ -21,7 +21,14 @@ class UsersService:
         self.uow = uow
 
     async def get_user(self, username: str) -> User:
-        user = await self.users_repo.get_by_username(username)
+        user = await self.users_repo.get_for_response_by_username(username)
+        if user is None:
+            raise UserNotFoundError()
+
+        return user
+
+    async def get_current_user_for_response(self, user_id) -> User:
+        user = await self.users_repo.get_for_response_by_id(user_id)
         if user is None:
             raise UserNotFoundError()
 
