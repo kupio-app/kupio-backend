@@ -10,6 +10,7 @@ from src.domains.payments.schemas import CheckoutRequest, CheckoutResponse
 from src.domains.payments.enums import PaymentSessionStatus, TransactionType
 from src.domains.payments.exceptions import WebhookSignatureError
 from src.domains.users.models import User
+from .consts import PAYMENT_CURRENCY, STRIPE_TOPUP_PRODUCT_NAME
 from .models import BalanceTransaction
 
 
@@ -50,9 +51,9 @@ class PaymentsService:
                 line_items=[
                     SessionCreateParamsLineItem(
                         price_data={
-                            "currency": "eur",
+                            "currency": PAYMENT_CURRENCY,
                             "unit_amount": checkout_req.amount,
-                            "product_data": {"name": "Balance Top-up"},
+                            "product_data": {"name": STRIPE_TOPUP_PRODUCT_NAME},
                         },
                         quantity=1,
                     )
