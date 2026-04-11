@@ -2,9 +2,11 @@ from uuid import UUID
 
 from redis.asyncio import Redis
 
+from src.worker import send_fcm_push
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
 from src.core.utils.pagination import decode_cursor, encode_cursor
+from src.core.utils import mjson
 from src.domains.chat.enums import ConversationRole
 from src.domains.chat.exceptions import (
     CannotMessageOwnListingError,
@@ -93,12 +95,18 @@ class ChatService:
     async def send_message(
         self, current_user: User, conversation_id: UUID, body: str
     ) -> Message:
+        conv = await self.get_conversation(current_user, conversation_id)
+
         async with self.uow:
-            return await self.repos.messages.create(
+            msg = await self.repos.messages.create(
                 conversation_id=conversation_id,
                 sender_id=current_user.id,
                 body=body,
             )
+
+        await self._publish_message(msg)
+        await self._maybe_enqueue_push(conv, msg, current_user.id)
+        return msg
 
     async def delete_message(
         self, current_user: User, conversation_id: UUID, message_id: UUID
@@ -115,6 +123,8 @@ class ChatService:
 
         async with self.uow:
             await self.repos.messages.soft_delete(message_id)
+
+        await self._publish_deletion(conversation_id, message_id)
 
     async def list_messages(
         self,
@@ -141,6 +151,31 @@ class ChatService:
             messages=[MessageResponse.model_validate(m) for m in msgs],
             next_cursor=next_cursor,
         )
+
+    async def _publish_message(self, msg: Message) -> None:
+        channel = f"chat:conversation:{msg.conversation_id}"
+        payload = MessageResponse.model_validate(msg).model_dump_json()
+        await self.redis.publish(channel, payload)
+
+    async def _publish_deletion(self, conversation_id: UUID, message_id: UUID) -> None:
+        channel = f"chat:conversation:{conversation_id}"
+        payload = mjson.encode(
+            {"type": "message_deleted", "message_id": str(message_id)}
+        )
+        await self.redis.publish(channel, payload)
+
+    async def _maybe_enqueue_push(
+        self, conv: Conversation, msg: Message, sender_id: UUID
+    ) -> None:
+        recipient_id = conv.seller_id if sender_id == conv.buyer_id else conv.buyer_id
+        presence_key = f"chat:presence:{conv.id}:{recipient_id}"
+        is_online = await self.redis.exists(presence_key)
+        if not is_online:
+            await send_fcm_push.enqueue(
+                str(recipient_id),
+                str(conv.id),
+                msg.body[:100] if msg.body else "",
+            )
 
 
 class DeviceTokenService:
