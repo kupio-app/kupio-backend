@@ -15,11 +15,10 @@ from .exceptions import (
     MessageNotOwnedError,
     NotConversationParticipantError,
 )
-from .models import Conversation, Message
+from .models import Conversation, Message, DeviceToken
 from .redis import ChatRedisManager
 from .schemas import (
     ConversationResponse,
-    DeviceTokenResponse,
     ListConversationsResponse,
     ListMessagesResponse,
     MessageResponse,
@@ -173,11 +172,10 @@ class DeviceTokenService:
 
     async def register_token(
         self, current_user: User, req: RegisterDeviceTokenRequest
-    ) -> DeviceTokenResponse:
+    ) -> DeviceToken:
         async with self.uow:
-            token = await self.repos.device_tokens.upsert(
+            return await self.repos.device_tokens.upsert(
                 user_id=current_user.id,
                 token=req.token,
                 platform=req.platform,
             )
-        return DeviceTokenResponse.model_validate(token)
