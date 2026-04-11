@@ -4,6 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.auth.repository import OAuthIdentitiesRepository, SessionsRepository
 from src.domains.categories.repository import CategoriesRepository
+from src.domains.chat.repository import (
+    ConversationsRepository,
+    DeviceTokensRepository,
+    MessagesRepository,
+)
 from src.domains.filter_definitions.repository import FilterDefinitionsRepository
 from src.domains.favourites.repository import FavouritesRepository
 from src.domains.listings.repository import ListingsRepository
@@ -27,6 +32,9 @@ class Repositories:
     balance_transactions: BalanceTransactionRepository
     promotion_packets: PromotionPacketsRepository
     listing_promotions: ListingPromotionsRepository
+    conversations: ConversationsRepository
+    messages: MessagesRepository
+    device_tokens: DeviceTokensRepository
 
     @classmethod
     def from_session(cls, session: AsyncSession) -> "Repositories":
@@ -41,4 +49,7 @@ class Repositories:
             balance_transactions=BalanceTransactionRepository(session=session),
             promotion_packets=PromotionPacketsRepository(session=session),
             listing_promotions=ListingPromotionsRepository(session=session),
+            conversations=ConversationsRepository(session=session),
+            messages=MessagesRepository(session=session),
+            device_tokens=DeviceTokensRepository(session=session),
         )
