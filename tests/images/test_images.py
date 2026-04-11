@@ -288,7 +288,7 @@ async def test_download_user_avatar_returns_binary_content(client):
     )
     assert set_avatar.status_code == 200
 
-    download = await client.get("/api/users/avatardownload/avatar")
+    download = await client.get("/api/users/avatardownload/avatar/download")
     assert download.status_code == 200
     assert download.content == b"avatar-bytes"
     assert download.headers["content-type"] == "image/jpeg"
@@ -331,7 +331,7 @@ async def test_delete_avatar_without_existing_avatar_returns_404(client):
 async def test_download_avatar_without_existing_avatar_returns_404(client):
     await _register(client, email="avatar4@example.com", username="avatar4")
 
-    resp = await client.get("/api/users/avatar4/avatar")
+    resp = await client.get("/api/users/avatar4/avatar/download")
 
     assert resp.status_code == 404
     assert resp.json()["detail"] == "User avatar not found"

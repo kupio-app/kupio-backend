@@ -71,7 +71,7 @@ async def set_avatar(
     return await service.set_user_avatar(current_user, file)
 
 
-@router.get("/users/{username}/avatar")
+@router.get("/users/{username}/avatar/download")
 async def download_user_avatar(
     username: str,
     service: ImageService = Depends(get_images_service),
