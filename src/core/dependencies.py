@@ -2,6 +2,7 @@ from typing import Annotated, AsyncGenerator, Callable, Awaitable, TypeAlias
 
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
@@ -22,19 +23,23 @@ oauth2_scheme = OAuth2PasswordBearer(
 )  # Used for OpenAPI documentation and token extraction from requests
 
 
+def get_redis(request: Request) -> Redis:
+    return request.app.state.redis
+
+
 async def get_db_session(request: Request) -> AsyncGenerator[AsyncSession, None]:
     async with request.app.state.db_session_factory() as session:
         yield session
         # await session.commit()
 
 
-async def get_repo(
+def get_repo(
     session: AsyncSession = Depends(get_db_session),
 ) -> Repositories:
     return Repositories.from_session(session=session)
 
 
-async def get_uow(session: AsyncSession = Depends(get_db_session)) -> UoW:
+def get_uow(session: AsyncSession = Depends(get_db_session)) -> UoW:
     return UoW(session=session)
 
 
