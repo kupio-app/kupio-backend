@@ -1,7 +1,7 @@
-import json
 from uuid import UUID
 
 from redis.asyncio import Redis
+from src.core.utils import mjson
 
 from .consts import PRESENCE_TTL
 from .models import Message
@@ -27,11 +27,13 @@ class ChatRedisManager:
         )
 
     async def publish_deletion(self, conversation_id: UUID, message_id: UUID) -> None:
-        payload = json.dumps({"type": "message_deleted", "message_id": str(message_id)})
+        payload = mjson.encode_bytes(
+            {"type": "message_deleted", "message_id": str(message_id)}
+        )
         await self._redis.publish(self.conversation_channel(conversation_id), payload)
 
     async def publish_typing(self, conversation_id: UUID, user_id: UUID) -> None:
-        payload = json.dumps({"type": "typing", "user_id": str(user_id)})
+        payload = mjson.encode_bytes({"type": "typing", "user_id": str(user_id)})
         await self._redis.publish(self.conversation_channel(conversation_id), payload)
 
     async def is_online(self, conversation_id: UUID, user_id: UUID) -> bool:
