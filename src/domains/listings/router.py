@@ -8,7 +8,7 @@ from src.core.utils.pagination import PaginationParams
 from src.domains.users.models import User
 
 from .dependencies import (
-    get_listing_by_id,
+    get_listing_for_response_by_id,
     get_listings_service,
     get_owned_listing_by_id,
 )
@@ -53,7 +53,7 @@ async def get_listings(
 
 
 @router.get("/{listing_id}", response_model=ListingResponse)
-async def get_listing(listing: Listing = Depends(get_listing_by_id)):
+async def get_listing(listing: Listing = Depends(get_listing_for_response_by_id)):
     return listing
 
 

@@ -11,6 +11,7 @@ from src.domains.promotions.router import (
     listing_promotions_router,
 )
 from .users.router import router as users_router
+from .images.router import router as image_router
 
 api_router = APIRouter()
 api_router.include_router(users_router, tags=["Users"], prefix="/users")
@@ -38,3 +39,4 @@ api_router.include_router(
     tags=["Promotion Packets"],
     prefix="/promotions/packets",
 )
+api_router.include_router(image_router, tags=["Images"])

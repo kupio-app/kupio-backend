@@ -49,7 +49,6 @@ def upgrade() -> None:
             name="uq_filter_definitions_category_display_order",
         ),
     )
-    op.add_column("categories", sa.Column("icon", sa.String(length=255), nullable=True))
     op.add_column(
         "listings",
         sa.Column(
@@ -73,7 +72,6 @@ def downgrade() -> None:
         "ix_listings_custom_filters", table_name="listings", postgresql_using="gin"
     )
     op.drop_column("listings", "custom_filters")
-    op.drop_column("categories", "icon")
     op.drop_table("filter_definitions")
     bind = op.get_bind()
     if bind.dialect.name == "postgresql":

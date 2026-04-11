@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.domains.categories.schemas import CategorySlim
+from src.domains.images.schemas import ListingImageResponse
 from src.domains.listings.enums import CurrencyEnum, ListingStatus
 
 
@@ -20,6 +21,7 @@ class ListingResponse(BaseModel):
     user_id: UUID
     category: CategorySlim
     custom_filters: dict[str, Any] | None
+    images: list[ListingImageResponse] = Field(default_factory=list)
     created_at: datetime.datetime
     updated_at: datetime.datetime | None
 

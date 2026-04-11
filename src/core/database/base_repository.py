@@ -1,7 +1,6 @@
-import datetime
 from typing import Any, Optional, Sequence, TypeVar
 
-from sqlalchemy import ColumnExpressionArgument, delete, insert, select, update
+from sqlalchemy import ColumnExpressionArgument, delete, insert, select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.base import ExecutableOption
 
@@ -25,6 +24,7 @@ class BaseRepository:
         model: type[ModelType],
         *conditions: ColumnExpressionArgument[Any],
         options: Sequence[ExecutableOption] = None,
+        populate_existing: bool = False,
     ) -> Optional[ModelType]:
         if options is None:
             options = []
@@ -33,9 +33,14 @@ class BaseRepository:
         if issubclass(model, SoftDeleteMixin):
             all_conditions.append(model.deleted_at.is_(None))
 
-        return await self.session.scalar(
-            select(model).where(*all_conditions).options(*options)
+        stmt = (
+            select(model)
+            .where(*all_conditions)
+            .options(*options)
+            .execution_options(populate_existing=populate_existing)
         )
+
+        return await self.session.scalar(stmt)
 
     async def _get_many(
         self,
@@ -103,7 +108,7 @@ class BaseRepository:
         result = await self.session.execute(
             update(model)
             .where(*conditions, model.deleted_at.is_(None))
-            .values(deleted_at=datetime.datetime.now(datetime.UTC))
+            .values(deleted_at=func.now())
         )
         await self.session.flush()
         return bool(getattr(result, "rowcount", 0) > 0)

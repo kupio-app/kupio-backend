@@ -4,8 +4,10 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import ColumnElement, and_, or_, select
+from sqlalchemy.orm import selectinload
 
 from src.core.database.base_repository import BaseRepository
+from src.domains.images.models import ListingImage
 from src.domains.listings.models import Listing
 
 from .models import ListingFavourite
@@ -19,6 +21,13 @@ class FavouritedListing:
 
 
 class FavouritesRepository(BaseRepository):
+    @staticmethod
+    def _listing_response_read_options():
+        return (
+            selectinload(Listing.category),
+            selectinload(Listing.images).joinedload(ListingImage.image),
+        )
+
     async def get_by_user_and_listing(
         self,
         *,
@@ -73,6 +82,7 @@ class FavouritesRepository(BaseRepository):
             select(Listing, ListingFavourite.created_at)
             .join(ListingFavourite, ListingFavourite.listing_id == Listing.id)
             .where(*conditions)
+            .options(*self._listing_response_read_options())
             .order_by(
                 ListingFavourite.created_at.desc(),
                 ListingFavourite.listing_id.desc(),
