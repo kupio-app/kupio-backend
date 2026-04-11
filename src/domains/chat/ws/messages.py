@@ -16,3 +16,8 @@ class WsAuthOkMessage(BaseModel):
 
 class WsPongMessage(BaseModel):
     type: Literal["pong"] = "pong"
+
+
+class WsTypingMessage(BaseModel):
+    type: Literal["typing"] = "typing"
+    user_id: UUID

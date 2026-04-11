@@ -173,6 +173,10 @@ class ChatWebSocketSession:
                 msg = json.loads(raw)
                 if msg.get("type") == "ping":
                     await self._send(WsPongMessage())
+                elif msg.get("type") == "typing":
+                    await self.chat_redis.publish_typing(
+                        self.conversation_id, self._user_id
+                    )
             except WebSocketDisconnect:
                 break
             except json.JSONDecodeError:

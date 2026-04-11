@@ -30,6 +30,10 @@ class ChatRedisManager:
         payload = json.dumps({"type": "message_deleted", "message_id": str(message_id)})
         await self._redis.publish(self.conversation_channel(conversation_id), payload)
 
+    async def publish_typing(self, conversation_id: UUID, user_id: UUID) -> None:
+        payload = json.dumps({"type": "typing", "user_id": str(user_id)})
+        await self._redis.publish(self.conversation_channel(conversation_id), payload)
+
     async def is_online(self, conversation_id: UUID, user_id: UUID) -> bool:
         return bool(
             await self._redis.exists(self.presence_key(conversation_id, user_id))
