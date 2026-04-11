@@ -32,6 +32,7 @@ class UserPrivate(BaseModel):
     email: str
     role: UserRole
     needs_username: bool
+    balance: int  # balance in cents
     avatar_url: str | None = None
 
 

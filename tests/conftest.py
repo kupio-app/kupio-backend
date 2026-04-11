@@ -1,7 +1,7 @@
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 
 from src.app import get_app
 from src.core.config import get_config
@@ -36,15 +36,14 @@ async def session_factory(engine):
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def reset_schema(engine):
-    async with engine.begin() as conn:
+async def reset_schema(engine: AsyncEngine):
+    async with engine.begin() as conn:  # type: ignore[attr-defined]
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
 
 @pytest_asyncio.fixture
 async def app(session_factory, monkeypatch: pytest.MonkeyPatch):
-    # Keep config parsing stable for tests; DB/redis values are placeholders.
     monkeypatch.setenv("POSTGRES__HOST", "localhost")
     monkeypatch.setenv("POSTGRES__DB", "kupio_test")
     monkeypatch.setenv("POSTGRES__PASSWORD", "test")
@@ -55,6 +54,10 @@ async def app(session_factory, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("REDIS__DB", "0")
     monkeypatch.setenv("AUTH__JWT_SECRET", "test-secret")
     monkeypatch.setenv("AUTH__GOOGLE_CLIENT_IDS", '["test-google-client-id"]')
+    monkeypatch.setenv("STRIPE__SECRET_KEY", "sk_test_123")
+    monkeypatch.setenv("STRIPE__WEBHOOK_SECRET", "whsec_test_123")
+    monkeypatch.setenv("STRIPE__SUCCESS_URL", "http://test/success")
+    monkeypatch.setenv("STRIPE__CANCEL_URL", "http://test/cancel")
     monkeypatch.setenv("S3__BUCKET", "test-bucket")
     monkeypatch.setenv("S3__REGION", "test-region")
     monkeypatch.setenv("S3__ACCESS_KEY_ID", "test")
@@ -64,25 +67,21 @@ async def app(session_factory, monkeypatch: pytest.MonkeyPatch):
     app = get_app()
 
     # Tests don't run lifespan startup, so app.state.s3_storage isn't set.
-    # Provide a tiny stub for building public URLs.
+    # Provide a tiny in-memory storage stub.
     class _StubS3Storage:
         def __init__(self, bucket: str, region: str):
             self._bucket = bucket
             self._region = region
+            self._objects: dict[str, bytes] = {}
 
         def upload_file(self, fileobj, key: str, content_type: str) -> None:
-            return None
+            self._objects[key] = fileobj.read()
 
         def delete_object(self, key: str) -> None:
-            return None
+            self._objects.pop(key, None)
 
-        def build_public_url(self, key: str) -> str:
-            from urllib.parse import quote
-
-            return (
-                f"https://{self._bucket}.s3.{self._region}.amazonaws.com/"
-                f"{quote(key, safe='/')}"
-            )
+        def download_object(self, key: str) -> bytes:
+            return self._objects[key]
 
     cfg = get_config()
     app.state.s3_storage = _StubS3Storage(cfg.s3.bucket, cfg.s3.region)

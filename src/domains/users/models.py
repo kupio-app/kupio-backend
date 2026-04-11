@@ -20,7 +20,7 @@ class User(Base, SoftDeleteMixin):
     last_name: M[str | None] = mc(String(100))
     password_hash: M[str | None] = mc(String(512))
     role: M[UserRole] = mc(Enum(UserRole), default=UserRole.USER)
-    balance: M[Int64] = mc(default=0)
+    balance: M[Int64] = mc(default=0)  # balance in cents
     avatar_image_id: M[UUID | None] = mc(ForeignKey("images.id", ondelete="SET NULL"))
     avatar_image: M[Image | None] = relationship(
         "Image",

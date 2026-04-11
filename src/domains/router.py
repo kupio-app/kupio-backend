@@ -6,7 +6,7 @@ from .filter_definitions.router import router as filter_definitions_router
 from .favourites.router import router as favourites_router
 from .listings.router import router as listings_router
 from .payments.router import router as payments_router
-from src.domains.promotions.router import (
+from .promotions.router import (
     promotion_packets_router,
     listing_promotions_router,
 )

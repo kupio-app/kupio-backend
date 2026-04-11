@@ -120,6 +120,52 @@ async def test_upload_listing_images_and_get_listing_includes_them(
     )
 
 
+async def test_download_listing_image_returns_binary_content(client, session_factory):
+    category = await _create_category(session_factory, name="Cameras")
+    token = await _register(
+        client, email="img-download@example.com", username="imgdownload"
+    )
+    listing = await _create_listing(client, token=token, category_id=category.id)
+
+    upload = await client.post(
+        f"/api/listings/{listing['id']}/images",
+        headers=_auth_header(token),
+        files=[("files", _image_file("photo.jpg", b"photo-bytes"))],
+    )
+    assert upload.status_code == 201
+    image_id = upload.json()[0]["id"]
+
+    download = await client.get(
+        f"/api/listings/{listing['id']}/images/{image_id}/download"
+    )
+    assert download.status_code == 200
+    assert download.content == b"photo-bytes"
+    assert download.headers["content-type"] == "image/jpeg"
+
+
+async def test_download_listing_image_returns_404_for_wrong_listing(
+    client, session_factory
+):
+    category = await _create_category(session_factory, name="Consoles")
+    token = await _register(client, email="img-wrong@example.com", username="imgwrong")
+    listing_a = await _create_listing(client, token=token, category_id=category.id)
+    listing_b = await _create_listing(client, token=token, category_id=category.id)
+
+    upload = await client.post(
+        f"/api/listings/{listing_a['id']}/images",
+        headers=_auth_header(token),
+        files=[("files", _image_file("photo.jpg", b"photo-bytes"))],
+    )
+    assert upload.status_code == 201
+    image_id = upload.json()[0]["id"]
+
+    download = await client.get(
+        f"/api/listings/{listing_b['id']}/images/{image_id}/download"
+    )
+    assert download.status_code == 404
+    assert download.json()["detail"] == "Listing image not found"
+
+
 async def test_reorder_listing_images_updates_listing_response(client, session_factory):
     category = await _create_category(session_factory, name="Phones")
     token = await _register(client, email="img2@example.com", username="img2")
@@ -230,6 +276,24 @@ async def test_set_avatar_returns_avatar_url_and_user_endpoints_expose_it(client
     assert public_user.json()["avatar_url"] == avatar_url
 
 
+async def test_download_user_avatar_returns_binary_content(client):
+    token = await _register(
+        client, email="avatar-download@example.com", username="avatardownload"
+    )
+
+    set_avatar = await client.put(
+        "/api/users/me/avatar",
+        headers=_auth_header(token),
+        files={"file": _image_file("avatar.jpg", b"avatar-bytes")},
+    )
+    assert set_avatar.status_code == 200
+
+    download = await client.get("/api/users/avatardownload/avatar/download")
+    assert download.status_code == 200
+    assert download.content == b"avatar-bytes"
+    assert download.headers["content-type"] == "image/jpeg"
+
+
 async def test_delete_avatar_clears_avatar_url(client):
     token = await _register(client, email="avatar2@example.com", username="avatar2")
 
@@ -259,6 +323,15 @@ async def test_delete_avatar_without_existing_avatar_returns_404(client):
         "/api/users/me/avatar",
         headers=_auth_header(token),
     )
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "User avatar not found"
+
+
+async def test_download_avatar_without_existing_avatar_returns_404(client):
+    await _register(client, email="avatar4@example.com", username="avatar4")
+
+    resp = await client.get("/api/users/avatar4/avatar/download")
 
     assert resp.status_code == 404
     assert resp.json()["detail"] == "User avatar not found"
