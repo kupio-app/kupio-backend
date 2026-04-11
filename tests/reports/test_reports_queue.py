@@ -82,6 +82,20 @@ async def _activate_listing(client, *, token: str, listing_id: str) -> None:
     assert resp.status_code == 200
 
 
+def _image_file(name: str, content: bytes = b"fake-image-bytes"):
+    return name, content, "image/jpeg"
+
+
+async def _upload_listing_image(client, *, token: str, listing_id: str) -> list[dict]:
+    resp = await client.post(
+        f"/api/listings/{listing_id}/images",
+        headers=_auth_header(token),
+        files=[("files", _image_file("cover.jpg", b"cover"))],
+    )
+    assert resp.status_code == 201
+    return resp.json()
+
+
 async def _create_reason(
     session_factory,
     *,
@@ -256,6 +270,11 @@ async def test_get_reports_returns_stats_and_filters(client, session_factory):
     await _make_moderator(session_factory, username="moderator")
 
     listing = await _create_listing(client, token=seller_token, category_id=category.id)
+    uploaded_images = await _upload_listing_image(
+        client,
+        token=seller_token,
+        listing_id=listing["id"],
+    )
     await _activate_listing(client, token=seller_token, listing_id=listing["id"])
     reason = await _create_reason(
         session_factory,
@@ -280,7 +299,7 @@ async def test_get_reports_returns_stats_and_filters(client, session_factory):
     report = body["reports"][0]
     assert report["reason"]["slug"] == "fraud"
     assert report["seen"] is False
-    assert report["listing"]["primary_image_url"] is None
+    assert report["listing"]["primary_image_url"] == uploaded_images[0]["url"]
     assert report["seller"]["username"] == "seller6"
     assert report["additional_info_preview"].endswith("...")
 

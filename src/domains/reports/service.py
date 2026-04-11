@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from src.domains.listings.models import Listing
 from src.domains.users.models import User
+from src.domains.images.models import ListingImage
 from src.domains.reports.exceptions import (
     CannotReportOwnListingError,
     CustomReasonDetailsRequiredError,
@@ -260,7 +261,7 @@ class ReportsService:
             price=listing.price,
             currency=listing.currency,
             status=listing.status,
-            primary_image_url=None,
+            primary_image_url=self._build_primary_image_url(listing),
         )
 
     def _build_listing_detail(self, listing: Listing) -> ReportListingDetail:
@@ -271,7 +272,7 @@ class ReportsService:
             price=listing.price,
             currency=listing.currency,
             status=listing.status,
-            primary_image_url=None,
+            primary_image_url=self._build_primary_image_url(listing),
         )
 
     def _build_created_report_response(
@@ -327,6 +328,15 @@ class ReportsService:
             return value
 
         return value[:ADDITIONAL_INFO_PREVIEW_LENGTH].rstrip() + "..."
+
+    def _build_primary_image_url(self, listing: Listing) -> str | None:
+        for listing_image in listing.images:
+            if (
+                isinstance(listing_image, ListingImage)
+                and listing_image.image is not None
+            ):
+                return listing_image.image.url
+        return None
 
     def _resolve_seen_filter(self, seen: ReportSeenFilter) -> bool | None:
         if seen == ReportSeenFilter.SEEN:

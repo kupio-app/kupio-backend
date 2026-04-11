@@ -7,6 +7,7 @@ from sqlalchemy import ColumnElement, and_, case, func, or_, select, update
 from sqlalchemy.orm import joinedload
 
 from src.core.database.base_repository import BaseRepository
+from src.domains.images.models import ListingImage
 from src.domains.listings.models import Listing
 
 from .enums import ReportStatus
@@ -66,14 +67,21 @@ class ReportReasonsRepository(BaseRepository):
 
 
 class ReportsRepository(BaseRepository):
+    @staticmethod
+    def _listing_read_options():
+        return (
+            joinedload(ListingReport.reason),
+            joinedload(ListingReport.listing).joinedload(Listing.user),
+            joinedload(ListingReport.listing)
+            .selectinload(Listing.images)
+            .joinedload(ListingImage.image),
+        )
+
     async def get_by_id(self, report_id: int) -> ListingReport | None:
         return await self._get(
             ListingReport,
             ListingReport.id == report_id,
-            options=[
-                joinedload(ListingReport.reason),
-                joinedload(ListingReport.listing).joinedload(Listing.user),
-            ],
+            options=self._listing_read_options(),
         )
 
     async def create(
@@ -142,10 +150,7 @@ class ReportsRepository(BaseRepository):
 
         stmt = (
             select(ListingReport)
-            .options(
-                joinedload(ListingReport.reason),
-                joinedload(ListingReport.listing).joinedload(Listing.user),
-            )
+            .options(*self._listing_read_options())
             .where(*conditions)
             .order_by(ListingReport.created_at.desc(), ListingReport.id.desc())
             .limit(limit)
