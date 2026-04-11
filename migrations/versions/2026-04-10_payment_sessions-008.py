@@ -1,7 +1,7 @@
 """payment sessions
 
-Revision ID: 007
-Revises: 006
+Revision ID: 008
+Revises: 007
 Create Date: 2026-04-10 18:18:00.557729
 
 """
@@ -13,8 +13,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = "007"
-down_revision: Union[str, Sequence[str], None] = "006"
+revision: str = "008"
+down_revision: Union[str, Sequence[str], None] = "007"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

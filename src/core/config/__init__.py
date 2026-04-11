@@ -22,4 +22,5 @@ __all__ = [
     "RedisConfig",
     "ServerConfig",
     "StripeConfig",
+    "S3Config",
 ]
