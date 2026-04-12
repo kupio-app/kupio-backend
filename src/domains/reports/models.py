@@ -40,8 +40,6 @@ class ListingReport(Base):
     __table_args__ = (
         Index("ix_listing_reports_status_created_id", "status", "created_at", "id"),
         Index("ix_listing_reports_seen_created_id", "seen_at", "created_at", "id"),
-        Index("ix_listing_reports_listing_id", "listing_id"),
-        Index("ix_listing_reports_reporter_id", "reporter_id"),
         Index(
             "uq_listing_reports_listing_reporter_pending",
             "listing_id",
@@ -54,10 +52,10 @@ class ListingReport(Base):
 
     id: M[Int64] = mc(primary_key=True, autoincrement=True)
     listing_id: M[UUID] = mc(
-        ForeignKey("listings.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("listings.id", ondelete="CASCADE"), nullable=False, index=True
     )
     reporter_id: M[UUID] = mc(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     reason_id: M[Int64] = mc(ForeignKey("report_reasons.id"), nullable=False)
     additional_info: M[str | None] = mc(String(2000))
