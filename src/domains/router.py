@@ -35,7 +35,7 @@ api_router.include_router(
 )
 api_router.include_router(listings_router, tags=["Listings"], prefix="/listings")
 api_router.include_router(payments_router, tags=["Payments"], prefix="/payments")
-api_router.include_router(reports_router, tags=["Reports"])
+api_router.include_router(reports_router, tags=["Reports"], prefix="/reports")
 api_router.include_router(
     promotion_packets_router,
     tags=["Promotion Packets"],
