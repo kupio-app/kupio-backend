@@ -47,7 +47,6 @@ class ListingView(Base):
 
     __table_args__ = (
         Index("ix_listing_views_listing_created", "listing_id", "created_at"),
-        Index("ix_listing_views_viewer_user_id", "viewer_user_id"),
     )
 
     id: M[UUID] = mc(primary_key=True, default=uuid.uuid4)
@@ -57,6 +56,7 @@ class ListingView(Base):
     viewer_user_id: M[UUID | None] = mc(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     listing: M["Listing"] = relationship("Listing", lazy="joined")
