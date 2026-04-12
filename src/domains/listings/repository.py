@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from src.core.database.base_repository import BaseRepository
 from src.domains.images.models import ListingImage
 from .enums import ListingStatus, CurrencyEnum
-from .models import Listing
+from .models import Listing, ListingView
 
 
 class ListingsRepository(BaseRepository):
@@ -128,4 +128,18 @@ class ListingsRepository(BaseRepository):
             Listing,
             Listing.user_id == user_id,
             return_rowcount=True,
+        )
+
+
+class ListingViewsRepository(BaseRepository):
+    async def create(
+        self,
+        *,
+        listing_id: UUID,
+        viewer_user_id: UUID | None,
+    ) -> ListingView:
+        return await self._add(
+            ListingView,
+            listing_id=listing_id,
+            viewer_user_id=viewer_user_id,
         )

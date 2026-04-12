@@ -1,8 +1,9 @@
 import json
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from src.core.dependencies import get_current_user
+from src.core.dependencies import get_current_user, get_optional_current_user
 from src.core.exceptions import UnprocessableEntityError
 from src.core.utils.pagination import PaginationParams
 from src.domains.reports.dependencies import get_reports_service
@@ -15,7 +16,6 @@ from src.domains.users.models import User
 
 from .dependencies import (
     get_listing_by_id,
-    get_listing_for_response_by_id,
     get_listings_service,
     get_owned_listing_by_id,
 )
@@ -60,8 +60,17 @@ async def get_listings(
 
 
 @router.get("/{listing_id}", response_model=ListingResponse)
-async def get_listing(listing: Listing = Depends(get_listing_for_response_by_id)):
-    return listing
+async def get_listing(
+    listing_id: UUID,
+    count_seen: bool = Query(default=False),
+    current_user: User | None = Depends(get_optional_current_user),
+    service: ListingsService = Depends(get_listings_service),
+):
+    return await service.get_listing_for_response(
+        listing_id,
+        current_user=current_user,
+        count_seen=count_seen,
+    )
 
 
 @router.post("", response_model=ListingResponse)

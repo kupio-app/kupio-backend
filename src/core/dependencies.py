@@ -23,6 +23,9 @@ from src.domains.users.models import Moderator, User
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/api/auth/login"
 )  # Used for OpenAPI documentation and token extraction from requests
+optional_oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/api/auth/login", auto_error=False
+)
 
 
 def get_redis(request: Request) -> Redis:
@@ -67,6 +70,16 @@ async def get_current_user(
         raise InvalidTokenError()
 
     return user
+
+
+async def get_optional_current_user(
+    repos: RepositoriesDeps,
+    token: str | None = Depends(optional_oauth2_scheme),
+) -> User | None:
+    if token is None:
+        return None
+
+    return await get_current_user(repos=repos, token=token)
 
 
 def require_roles(*allowed_roles: str) -> Callable[..., Awaitable[User]]:

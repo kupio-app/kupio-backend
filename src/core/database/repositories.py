@@ -8,7 +8,7 @@ from src.domains.chat.repository import ConversationsRepository, MessagesReposit
 from src.domains.filter_definitions.repository import FilterDefinitionsRepository
 from src.domains.favourites.repository import FavouritesRepository
 from src.domains.images.repository import ImagesRepository, ListingImagesRepository
-from src.domains.listings.repository import ListingsRepository
+from src.domains.listings.repository import ListingsRepository, ListingViewsRepository
 from src.domains.payments.repository import (
     BalanceTransactionRepository,
     PaymentSessionRepository,
@@ -18,7 +18,11 @@ from src.domains.promotions.repository import (
     PromotionPacketsRepository,
 )
 from src.domains.reports.repository import ReportReasonsRepository, ReportsRepository
-from src.domains.users.repository import ModeratorsRepository, UsersRepository, NotificationTokensRepository
+from src.domains.users.repository import (
+    ModeratorsRepository,
+    UsersRepository,
+    NotificationTokensRepository,
+)
 
 
 @dataclass(slots=True)
@@ -28,6 +32,7 @@ class Repositories:
     sessions: SessionsRepository
     oauth_identities: OAuthIdentitiesRepository
     listings: ListingsRepository
+    listing_views: ListingViewsRepository
     categories: CategoriesRepository
     filter_definitions: FilterDefinitionsRepository
     favourites: FavouritesRepository
@@ -51,6 +56,7 @@ class Repositories:
             sessions=SessionsRepository(session=session),
             oauth_identities=OAuthIdentitiesRepository(session=session),
             listings=ListingsRepository(session=session),
+            listing_views=ListingViewsRepository(session=session),
             categories=CategoriesRepository(session=session),
             filter_definitions=FilterDefinitionsRepository(session=session),
             favourites=FavouritesRepository(session=session),

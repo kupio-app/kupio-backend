@@ -40,3 +40,24 @@ class Listing(Base, SoftDeleteMixin):
     currency: M[CurrencyEnum] = mc(Enum(CurrencyEnum))
     status: M[ListingStatus] = mc(Enum(ListingStatus))
     custom_filters: M[JSONDict | None] = mc(default=None)
+
+
+class ListingView(Base):
+    __tablename__ = "listing_views"
+
+    __table_args__ = (
+        Index("ix_listing_views_listing_created", "listing_id", "created_at"),
+        Index("ix_listing_views_viewer_user_id", "viewer_user_id"),
+    )
+
+    id: M[UUID] = mc(primary_key=True, default=uuid.uuid4)
+    listing_id: M[UUID] = mc(
+        ForeignKey("listings.id", ondelete="CASCADE"), nullable=False
+    )
+    viewer_user_id: M[UUID | None] = mc(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    listing: M["Listing"] = relationship("Listing", lazy="joined")
+    viewer: M["User | None"] = relationship("User", lazy="joined")
