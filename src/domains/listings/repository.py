@@ -177,10 +177,24 @@ class ListingsRepository(BaseRepository):
             cursor_created_at=cursor_created_at,
             cursor_id=cursor_id,
         )
+        page_listing_ids = (
+            select(
+                Listing.id.label("listing_id"),
+                Listing.created_at.label("created_at"),
+            )
+            .where(*conditions)
+            .order_by(Listing.created_at.desc(), Listing.id.desc())
+            .limit(limit)
+            .cte("page_listing_ids")
+        )
         seen_counts = (
             select(
                 ListingView.listing_id.label("listing_id"),
                 func.count(ListingView.id).label("seen_count"),
+            )
+            .join(
+                page_listing_ids,
+                page_listing_ids.c.listing_id == ListingView.listing_id,
             )
             .group_by(ListingView.listing_id)
             .subquery()
@@ -190,6 +204,10 @@ class ListingsRepository(BaseRepository):
                 ListingFavourite.listing_id.label("listing_id"),
                 func.count().label("favourites_count"),
             )
+            .join(
+                page_listing_ids,
+                page_listing_ids.c.listing_id == ListingFavourite.listing_id,
+            )
             .group_by(ListingFavourite.listing_id)
             .subquery()
         )
@@ -198,6 +216,10 @@ class ListingsRepository(BaseRepository):
                 Conversation.listing_id.label("listing_id"),
                 func.count(Conversation.id).label("chats_count"),
             )
+            .join(
+                page_listing_ids,
+                page_listing_ids.c.listing_id == Conversation.listing_id,
+            )
             .group_by(Conversation.listing_id)
             .subquery()
         )
@@ -205,6 +227,10 @@ class ListingsRepository(BaseRepository):
             select(
                 ListingPromotion.listing_id.label("listing_id"),
                 func.max(ListingPromotion.expires_at).label("promotion_expires_at"),
+            )
+            .join(
+                page_listing_ids,
+                page_listing_ids.c.listing_id == ListingPromotion.listing_id,
             )
             .where(
                 ListingPromotion.status == PromotionStatus.ACTIVE,
@@ -224,7 +250,7 @@ class ListingsRepository(BaseRepository):
                 func.coalesce(chats_counts.c.chats_count, 0).label("chats_count"),
                 promotion_expiry.c.promotion_expires_at,
             )
-            .where(*conditions)
+            .join(page_listing_ids, page_listing_ids.c.listing_id == Listing.id)
             .outerjoin(seen_counts, seen_counts.c.listing_id == Listing.id)
             .outerjoin(
                 favourites_counts,
@@ -233,8 +259,7 @@ class ListingsRepository(BaseRepository):
             .outerjoin(chats_counts, chats_counts.c.listing_id == Listing.id)
             .outerjoin(promotion_expiry, promotion_expiry.c.listing_id == Listing.id)
             .options(*self._response_read_options())
-            .order_by(Listing.created_at.desc(), Listing.id.desc())
-            .limit(limit)
+            .order_by(page_listing_ids.c.created_at.desc(), Listing.id.desc())
         )
         rows = (await self.session.execute(stmt)).unique().all()
         return [
