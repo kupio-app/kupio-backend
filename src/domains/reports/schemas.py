@@ -4,6 +4,7 @@ import re
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.database.base_model import UUID
+from src.core.utils.pydantic import NormalizedOptionalString
 from src.domains.listings.enums import CurrencyEnum, ListingStatus
 
 from .enums import ReportDecisionAction, ReportStatus
@@ -53,16 +54,7 @@ class ReportReasonResponse(BaseModel):
 
 class CreateListingReportRequest(BaseModel):
     reason_id: int
-    additional_info: str | None = Field(default=None, max_length=2000)
-
-    @field_validator("additional_info")
-    @classmethod
-    def normalize_additional_info(cls, v: str | None) -> str | None:
-        if v is None:
-            return None
-
-        v = v.strip()
-        return v or None
+    additional_info: NormalizedOptionalString = Field(default=None, max_length=2000)
 
 
 class ReportReasonSummary(BaseModel):
@@ -148,13 +140,4 @@ class ReportDetailResponse(BaseModel):
 
 class ModerateReportRequest(BaseModel):
     action: ReportDecisionAction
-    comment: str | None = Field(default=None, max_length=2000)
-
-    @field_validator("comment")
-    @classmethod
-    def normalize_comment(cls, v: str | None) -> str | None:
-        if v is None:
-            return None
-
-        v = v.strip()
-        return v or None
+    comment: NormalizedOptionalString = Field(default=None, max_length=2000)
