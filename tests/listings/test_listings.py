@@ -1,11 +1,16 @@
 import itertools
 import uuid
 
-from sqlalchemy import inspect
+from sqlalchemy import inspect, select, update, func
 
 from src.core.database.repositories import Repositories
 from src.domains.categories.models import Category
+from src.domains.chat.models import Conversation
+from src.domains.listings.models import ListingView
 from src.domains.listings.enums import CurrencyEnum, ListingStatus
+from src.domains.promotions.enums import PromotionType
+from src.domains.promotions.models import PromotionPacket
+from src.domains.users.models import User
 
 _cat_id = itertools.count(1)
 
@@ -62,6 +67,90 @@ async def _create_listing(client, *, token: str, category_id: int) -> dict:
     )
     assert resp.status_code == 200
     return resp.json()
+
+
+async def _activate_listing(client, *, token: str, listing_id: str) -> dict:
+    resp = await client.put(
+        f"/api/listings/{listing_id}/status",
+        headers=_auth_header(token),
+        json={"status": "active"},
+    )
+    assert resp.status_code == 200
+    return resp.json()
+
+
+async def _create_packet(
+    session_factory,
+    *,
+    name: str,
+    promotion_type: PromotionType = PromotionType.TOP,
+    duration_days: int = 7,
+    price: int = 1000,
+) -> PromotionPacket:
+    async with session_factory() as session:
+        packet = PromotionPacket(
+            name=name,
+            description="Stats packet",
+            type=promotion_type,
+            duration_days=duration_days,
+            price=price,
+            is_active=True,
+        )
+        session.add(packet)
+        await session.commit()
+        await session.refresh(packet)
+        return packet
+
+
+async def _add_balance(session_factory, *, username: str, amount: int) -> None:
+    async with session_factory() as session:
+        await session.execute(
+            update(User).where(User.username == username).values(balance=amount)
+        )
+        await session.commit()
+
+
+async def _purchase_promotion(
+    client, *, token: str, listing_id: str, packet_id: int
+) -> dict:
+    resp = await client.post(
+        f"/api/listings/promotions/{listing_id}",
+        headers=_auth_header(token),
+        json={"packet_id": packet_id},
+    )
+    assert resp.status_code == 201
+    return resp.json()
+
+
+async def _count_views(session_factory, *, listing_id: str) -> int:
+    async with session_factory() as session:
+        stmt = select(func.count(ListingView.id)).where(
+            ListingView.listing_id == uuid.UUID(listing_id)
+        )
+        return int((await session.scalar(stmt)) or 0)
+
+
+async def _create_conversation(
+    session_factory,
+    *,
+    listing_id: str,
+    buyer_username: str,
+    seller_username: str,
+) -> Conversation:
+    async with session_factory() as session:
+        buyer = await session.scalar(select(User).where(User.username == buyer_username))
+        seller = await session.scalar(
+            select(User).where(User.username == seller_username)
+        )
+        conversation = Conversation(
+            listing_id=uuid.UUID(listing_id),
+            buyer_id=buyer.id,
+            seller_id=seller.id,
+        )
+        session.add(conversation)
+        await session.commit()
+        await session.refresh(conversation)
+        return conversation
 
 
 # ── POST /api/listings ────────────────────────────────────────────────────────
@@ -143,6 +232,93 @@ async def test_get_listing_by_id(client, session_factory):
 
     assert resp.status_code == 200
     assert resp.json()["id"] == listing["id"]
+
+
+async def test_get_listing_does_not_count_seen_by_default(client, session_factory):
+    category = await _create_category(session_factory, name="Electronics")
+    seller_token = await _register(client, email="seller-seen1@example.com", username="seller-seen1")
+    buyer_token = await _register(client, email="buyer-seen1@example.com", username="buyer-seen1")
+    listing = await _create_listing(
+        client, token=seller_token, category_id=category.id
+    )
+    await _activate_listing(client, token=seller_token, listing_id=listing["id"])
+
+    resp = await client.get(
+        f"/api/listings/{listing['id']}",
+        headers=_auth_header(buyer_token),
+    )
+
+    assert resp.status_code == 200
+    assert await _count_views(session_factory, listing_id=listing["id"]) == 0
+
+
+async def test_get_listing_does_not_count_seen_when_flag_false(client, session_factory):
+    category = await _create_category(session_factory, name="Electronics")
+    seller_token = await _register(client, email="seller-seen2@example.com", username="seller-seen2")
+    buyer_token = await _register(client, email="buyer-seen2@example.com", username="buyer-seen2")
+    listing = await _create_listing(
+        client, token=seller_token, category_id=category.id
+    )
+    await _activate_listing(client, token=seller_token, listing_id=listing["id"])
+
+    resp = await client.get(
+        f"/api/listings/{listing['id']}?count_seen=false",
+        headers=_auth_header(buyer_token),
+    )
+
+    assert resp.status_code == 200
+    assert await _count_views(session_factory, listing_id=listing["id"]) == 0
+
+
+async def test_get_listing_counts_seen_when_flag_true(client, session_factory):
+    category = await _create_category(session_factory, name="Electronics")
+    seller_token = await _register(client, email="seller-seen3@example.com", username="seller-seen3")
+    buyer_token = await _register(client, email="buyer-seen3@example.com", username="buyer-seen3")
+    listing = await _create_listing(
+        client, token=seller_token, category_id=category.id
+    )
+    await _activate_listing(client, token=seller_token, listing_id=listing["id"])
+
+    resp = await client.get(
+        f"/api/listings/{listing['id']}?count_seen=true",
+        headers=_auth_header(buyer_token),
+    )
+
+    assert resp.status_code == 200
+    assert await _count_views(session_factory, listing_id=listing["id"]) == 1
+
+
+async def test_get_listing_counts_repeated_anonymous_seen(client, session_factory):
+    category = await _create_category(session_factory, name="Electronics")
+    seller_token = await _register(client, email="seller-seen4@example.com", username="seller-seen4")
+    listing = await _create_listing(
+        client, token=seller_token, category_id=category.id
+    )
+    await _activate_listing(client, token=seller_token, listing_id=listing["id"])
+
+    first_resp = await client.get(f"/api/listings/{listing['id']}?count_seen=true")
+    second_resp = await client.get(f"/api/listings/{listing['id']}?count_seen=true")
+
+    assert first_resp.status_code == 200
+    assert second_resp.status_code == 200
+    assert await _count_views(session_factory, listing_id=listing["id"]) == 2
+
+
+async def test_get_listing_does_not_count_owner_seen(client, session_factory):
+    category = await _create_category(session_factory, name="Electronics")
+    seller_token = await _register(client, email="seller-seen5@example.com", username="seller-seen5")
+    listing = await _create_listing(
+        client, token=seller_token, category_id=category.id
+    )
+    await _activate_listing(client, token=seller_token, listing_id=listing["id"])
+
+    resp = await client.get(
+        f"/api/listings/{listing['id']}?count_seen=true",
+        headers=_auth_header(seller_token),
+    )
+
+    assert resp.status_code == 200
+    assert await _count_views(session_factory, listing_id=listing["id"]) == 0
 
 
 async def test_get_listing_not_found_returns_404(client):
@@ -277,6 +453,159 @@ async def test_get_my_listings_requires_auth(client):
     resp = await client.get("/api/users/me/listings")
 
     assert resp.status_code == 401
+
+
+async def test_get_my_stats_returns_dashboard_totals(client, session_factory):
+    category = await _create_category(session_factory, name="Electronics")
+    seller_token = await _register(client, email="stats-seller@example.com", username="statsseller")
+    buyer_token = await _register(client, email="stats-buyer@example.com", username="statsbuyer")
+    other_token = await _register(client, email="stats-other@example.com", username="statsother")
+
+    promoted_listing = await _create_listing(
+        client, token=seller_token, category_id=category.id
+    )
+    active_listing = await _create_listing(
+        client, token=seller_token, category_id=category.id
+    )
+    inactive_listing = await _create_listing(
+        client, token=seller_token, category_id=category.id
+    )
+
+    await _activate_listing(
+        client, token=seller_token, listing_id=promoted_listing["id"]
+    )
+    await _activate_listing(client, token=seller_token, listing_id=active_listing["id"])
+
+    await client.get(
+        f"/api/listings/{promoted_listing['id']}?count_seen=true",
+        headers=_auth_header(buyer_token),
+    )
+    await client.get(
+        f"/api/listings/{promoted_listing['id']}?count_seen=true",
+    )
+
+    favourite_resp = await client.post(
+        f"/api/listings/favourites/{promoted_listing['id']}",
+        headers=_auth_header(buyer_token),
+    )
+    assert favourite_resp.status_code == 201
+
+    conversation = await _create_conversation(
+        session_factory,
+        listing_id=promoted_listing["id"],
+        buyer_username="statsbuyer",
+        seller_username="statsseller",
+    )
+    assert conversation.id is not None
+
+    unrelated_listing = await _create_listing(
+        client, token=other_token, category_id=category.id
+    )
+    await _activate_listing(client, token=other_token, listing_id=unrelated_listing["id"])
+    unrelated_favourite = await client.post(
+        f"/api/listings/favourites/{unrelated_listing['id']}",
+        headers=_auth_header(seller_token),
+    )
+    assert unrelated_favourite.status_code == 201
+
+    await _add_balance(session_factory, username="statsseller", amount=5000)
+    packet = await _create_packet(session_factory, name="Stats Top Packet")
+    await _purchase_promotion(
+        client,
+        token=seller_token,
+        listing_id=promoted_listing["id"],
+        packet_id=packet.id,
+    )
+
+    resp = await client.get("/api/users/me/stats", headers=_auth_header(seller_token))
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "active_count": 2,
+        "inactive_count": 1,
+        "promoted_count": 1,
+        "chats_count": 1,
+        "favourites_count": 1,
+    }
+
+
+async def test_get_my_stats_requires_auth(client):
+    resp = await client.get("/api/users/me/stats")
+
+    assert resp.status_code == 401
+
+
+async def test_get_my_listings_include_owner_stats(client, session_factory):
+    category = await _create_category(session_factory, name="Electronics")
+    seller_token = await _register(client, email="owner-stats@example.com", username="ownerstats")
+    buyer_token = await _register(client, email="viewer-stats@example.com", username="viewerstats")
+
+    promoted_listing = await _create_listing(
+        client, token=seller_token, category_id=category.id
+    )
+    plain_listing = await _create_listing(
+        client, token=seller_token, category_id=category.id
+    )
+    await _activate_listing(
+        client, token=seller_token, listing_id=promoted_listing["id"]
+    )
+    await _activate_listing(client, token=seller_token, listing_id=plain_listing["id"])
+
+    await client.get(
+        f"/api/listings/{promoted_listing['id']}?count_seen=true",
+        headers=_auth_header(buyer_token),
+    )
+    await client.get(
+        f"/api/listings/{promoted_listing['id']}?count_seen=true",
+    )
+
+    favourite_resp = await client.post(
+        f"/api/listings/favourites/{promoted_listing['id']}",
+        headers=_auth_header(buyer_token),
+    )
+    assert favourite_resp.status_code == 201
+
+    conversation = await _create_conversation(
+        session_factory,
+        listing_id=promoted_listing["id"],
+        buyer_username="viewerstats",
+        seller_username="ownerstats",
+    )
+    assert conversation.id is not None
+
+    await _add_balance(session_factory, username="ownerstats", amount=5000)
+    packet = await _create_packet(session_factory, name="Owner Stats Packet")
+    await _purchase_promotion(
+        client,
+        token=seller_token,
+        listing_id=promoted_listing["id"],
+        packet_id=packet.id,
+    )
+
+    resp = await client.get(
+        "/api/users/me/listings?status=active",
+        headers=_auth_header(seller_token),
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["next_cursor"] is None
+    returned = {listing["id"]: listing for listing in body["listings"]}
+    assert set(returned) == {promoted_listing["id"], plain_listing["id"]}
+
+    promoted = returned[promoted_listing["id"]]
+    assert promoted["seen_count"] == 2
+    assert promoted["favourites_count"] == 1
+    assert promoted["chats_count"] == 1
+    assert promoted["is_promoted"] is True
+    assert promoted["promotion_expires_at"] is not None
+
+    plain = returned[plain_listing["id"]]
+    assert plain["seen_count"] == 0
+    assert plain["favourites_count"] == 0
+    assert plain["chats_count"] == 0
+    assert plain["is_promoted"] is False
+    assert plain["promotion_expires_at"] is None
 
 
 # ── GET /api/users/{username}/listings ────────────────────────────────────────
