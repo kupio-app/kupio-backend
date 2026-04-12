@@ -24,6 +24,7 @@ class BaseRepository:
         model: type[ModelType],
         *conditions: ColumnExpressionArgument[Any],
         options: Sequence[ExecutableOption] = None,
+        populate_existing: bool = False,
     ) -> Optional[ModelType]:
         if options is None:
             options = []
@@ -32,9 +33,14 @@ class BaseRepository:
         if issubclass(model, SoftDeleteMixin):
             all_conditions.append(model.deleted_at.is_(None))
 
-        return await self.session.scalar(
-            select(model).where(*all_conditions).options(*options)
+        stmt = (
+            select(model)
+            .where(*all_conditions)
+            .options(*options)
+            .execution_options(populate_existing=populate_existing)
         )
+
+        return await self.session.scalar(stmt)
 
     async def _get_many(
         self,

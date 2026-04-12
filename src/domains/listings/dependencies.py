@@ -38,6 +38,13 @@ async def get_listing_by_id(
     return await service.get_listing(listing_id)
 
 
+async def get_listing_for_response_by_id(
+    listing_id: UUID,
+    service: ListingsService = Depends(get_listings_service),
+) -> Listing:
+    return await service.get_listing_for_response(listing_id)
+
+
 async def get_owned_listing_by_id(
     listing: Listing = Depends(get_listing_by_id),
     current_user: User = Depends(get_current_user),

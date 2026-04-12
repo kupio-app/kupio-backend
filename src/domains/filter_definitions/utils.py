@@ -1,6 +1,6 @@
-from src.domains.filter_definitions.enums import FilterType
-from src.domains.filter_definitions.exceptions import InvalidCustomFiltersError
-from src.domains.filter_definitions.models import FilterDefinition
+from .enums import FilterType
+from .exceptions import InvalidCustomFiltersError
+from .models import FilterDefinition
 
 
 def validate_select_options(options: dict | None) -> None:

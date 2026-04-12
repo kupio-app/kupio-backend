@@ -7,11 +7,12 @@ from .filter_definitions.router import router as filter_definitions_router
 from .favourites.router import router as favourites_router
 from .listings.router import router as listings_router
 from .payments.router import router as payments_router
-from src.domains.promotions.router import (
+from .promotions.router import (
     promotion_packets_router,
     listing_promotions_router,
 )
 from .users.router import router as users_router
+from .images.router import router as image_router
 
 api_router = APIRouter()
 api_router.include_router(users_router, tags=["Users"], prefix="/users")
@@ -40,3 +41,4 @@ api_router.include_router(
     prefix="/promotions/packets",
 )
 api_router.include_router(chat_router, tags=["Chat"], prefix="/chat")
+api_router.include_router(image_router, tags=["Images"])
