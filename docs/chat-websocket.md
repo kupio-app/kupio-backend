@@ -137,4 +137,4 @@ Client                              Server
 - **Presence** — the server tracks online status in Redis (TTL 30s, refreshed every 15s). If the recipient is offline, an FCM push notification is sent to their registered devices (iOS / Android).
 - **Message replay** — on reconnect, pass `last_message_id` to receive up to 200 messages that arrived while disconnected.
 - **Malformed JSON** — invalid JSON received after authentication is silently ignored; the connection stays open.
-- **Soft deletes** — deleted messages are never removed from the database. The server sets `is_deleted: true` and nullifies `content`, then broadcasts a `message_deleted` event to all connected participants.
+- **Soft deletes** — deleted messages are never removed from the database. On deletion the server broadcasts a `message_deleted` event (with only `message_id`) to all connected participants. When fetching message history via REST, deleted messages are returned with `is_deleted: true` and `content: null`.
