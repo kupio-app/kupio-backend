@@ -33,13 +33,13 @@ async def get_db_session(request: Request) -> AsyncGenerator[AsyncSession, None]
         # await session.commit()
 
 
-def get_repo(
+async def get_repo(
     session: AsyncSession = Depends(get_db_session),
 ) -> Repositories:
     return Repositories.from_session(session=session)
 
 
-def get_uow(session: AsyncSession = Depends(get_db_session)) -> UoW:
+async def get_uow(session: AsyncSession = Depends(get_db_session)) -> UoW:
     return UoW(session=session)
 
 
