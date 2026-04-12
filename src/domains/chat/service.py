@@ -103,6 +103,9 @@ class ChatService:
                 sender_id=current_user.id,
                 body=body,
             )
+            await self.repos.conversations.update_message_preview(
+                conversation_id=conversation_id, preview=generate_message_preview(msg)
+            )
 
         await self.chat_redis.publish_message(msg)
         await self._maybe_enqueue_push(conv, msg, current_user.id)

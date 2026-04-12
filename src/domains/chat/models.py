@@ -25,6 +25,7 @@ class Conversation(Base):
     seller_id: M[UUID] = mc(
         ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
+    last_message_preview: M[str | None] = mc(String(255), nullable=True)
 
     messages: M[list["Message"]] = relationship(
         "Message", back_populates="conversation", lazy="noload"

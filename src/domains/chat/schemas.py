@@ -12,6 +12,7 @@ class ConversationResponse(BaseModel):
     buyer_id: UUID
     seller_id: UUID
     created_at: datetime.datetime
+    last_message_preview: str | None
 
 
 class ListConversationsResponse(BaseModel):

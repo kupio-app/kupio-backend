@@ -31,6 +31,13 @@ class ConversationsRepository(BaseRepository):
             seller_id=seller_id,
         )
 
+    async def update_message_preview(self, conversation_id: UUID, preview: str) -> None:
+        await self._update(
+            Conversation,
+            [Conversation.id == conversation_id],
+            last_message_preview=preview[:255],  # DB column is varchar(255)
+        )
+
     async def list_as(
         self,
         *,

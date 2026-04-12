@@ -56,6 +56,7 @@ def upgrade() -> None:
         sa.Column("seller_id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=True),
+        sa.Column("last_message_preview", sa.String(255), nullable=True),
         sa.ForeignKeyConstraint(["buyer_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["listing_id"], ["listings.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["seller_id"], ["users.id"], ondelete="CASCADE"),
