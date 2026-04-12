@@ -31,6 +31,7 @@ dependencies = [
     "stripe[async] (>=15.0.1,<16.0.0)",
     "boto3 (>=1.42.84,<2.0.0)",
     "python-multipart (>=0.0.24,<0.0.25)",
+    "psycopg2-binary (>=2.9.11,<3.0.0)",
 ]
 
 
