@@ -30,7 +30,7 @@ async def get_report_reasons(
 @router.get("/reasons/all", response_model=list[ReportReasonResponse])
 async def get_all_report_reasons(
     service: ReportsService = Depends(get_reports_service),
-    _moderator: Moderator = Depends(get_current_moderator),
+    _=Depends(get_current_moderator),
 ):
     return await service.list_all_reasons()
 
