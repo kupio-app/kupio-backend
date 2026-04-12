@@ -1,6 +1,5 @@
 import datetime
 import uuid
-import datetime
 
 from sqlalchemy import (
     String,
@@ -82,7 +81,7 @@ class NotificationToken(Base):
     token: M[str] = mc(String(512), nullable=False)
     platform: M[DevicePlatform] = mc(Enum(DevicePlatform), nullable=False)
     last_seen_at: M[datetime.datetime] = mc(DateTime(timezone=True), default=func.now())
-      
+
 
 class Moderator(Base):
     __tablename__ = "moderators"

@@ -218,9 +218,9 @@ class ListingsRepository(BaseRepository):
             select(
                 Listing,
                 func.coalesce(seen_counts.c.seen_count, 0).label("seen_count"),
-                func.coalesce(
-                    favourites_counts.c.favourites_count, 0
-                ).label("favourites_count"),
+                func.coalesce(favourites_counts.c.favourites_count, 0).label(
+                    "favourites_count"
+                ),
                 func.coalesce(chats_counts.c.chats_count, 0).label("chats_count"),
                 promotion_expiry.c.promotion_expires_at,
             )

@@ -148,7 +148,9 @@ class ListingsService:
         )
 
         return ListOwnerListingsResponse(
-            listings=[self._build_owner_listing_response(listing) for listing in listings],
+            listings=[
+                self._build_owner_listing_response(listing) for listing in listings
+            ],
             next_cursor=next_cursor,
         )
 
@@ -198,7 +200,9 @@ class ListingsService:
     def _build_owner_listing_response(
         listing_stats: OwnerListingStats,
     ) -> OwnerListingResponse:
-        listing_data = ListingResponse.model_validate(listing_stats.listing).model_dump()
+        listing_data = ListingResponse.model_validate(
+            listing_stats.listing
+        ).model_dump()
         return OwnerListingResponse(
             **listing_data,
             seen_count=listing_stats.seen_count,

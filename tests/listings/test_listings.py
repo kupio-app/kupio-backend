@@ -130,6 +130,14 @@ async def _count_views(session_factory, *, listing_id: str) -> int:
         return int((await session.scalar(stmt)) or 0)
 
 
+async def _get_views(session_factory, *, listing_id: str) -> list[ListingView]:
+    async with session_factory() as session:
+        stmt = select(ListingView).where(
+            ListingView.listing_id == uuid.UUID(listing_id)
+        )
+        return list((await session.scalars(stmt)).all())
+
+
 async def _create_conversation(
     session_factory,
     *,
@@ -138,7 +146,9 @@ async def _create_conversation(
     seller_username: str,
 ) -> Conversation:
     async with session_factory() as session:
-        buyer = await session.scalar(select(User).where(User.username == buyer_username))
+        buyer = await session.scalar(
+            select(User).where(User.username == buyer_username)
+        )
         seller = await session.scalar(
             select(User).where(User.username == seller_username)
         )
@@ -236,11 +246,13 @@ async def test_get_listing_by_id(client, session_factory):
 
 async def test_get_listing_does_not_count_seen_by_default(client, session_factory):
     category = await _create_category(session_factory, name="Electronics")
-    seller_token = await _register(client, email="seller-seen1@example.com", username="seller-seen1")
-    buyer_token = await _register(client, email="buyer-seen1@example.com", username="buyer-seen1")
-    listing = await _create_listing(
-        client, token=seller_token, category_id=category.id
+    seller_token = await _register(
+        client, email="seller-seen1@example.com", username="seller-seen1"
     )
+    buyer_token = await _register(
+        client, email="buyer-seen1@example.com", username="buyer-seen1"
+    )
+    listing = await _create_listing(client, token=seller_token, category_id=category.id)
     await _activate_listing(client, token=seller_token, listing_id=listing["id"])
 
     resp = await client.get(
@@ -254,11 +266,13 @@ async def test_get_listing_does_not_count_seen_by_default(client, session_factor
 
 async def test_get_listing_does_not_count_seen_when_flag_false(client, session_factory):
     category = await _create_category(session_factory, name="Electronics")
-    seller_token = await _register(client, email="seller-seen2@example.com", username="seller-seen2")
-    buyer_token = await _register(client, email="buyer-seen2@example.com", username="buyer-seen2")
-    listing = await _create_listing(
-        client, token=seller_token, category_id=category.id
+    seller_token = await _register(
+        client, email="seller-seen2@example.com", username="seller-seen2"
     )
+    buyer_token = await _register(
+        client, email="buyer-seen2@example.com", username="buyer-seen2"
+    )
+    listing = await _create_listing(client, token=seller_token, category_id=category.id)
     await _activate_listing(client, token=seller_token, listing_id=listing["id"])
 
     resp = await client.get(
@@ -272,11 +286,13 @@ async def test_get_listing_does_not_count_seen_when_flag_false(client, session_f
 
 async def test_get_listing_counts_seen_when_flag_true(client, session_factory):
     category = await _create_category(session_factory, name="Electronics")
-    seller_token = await _register(client, email="seller-seen3@example.com", username="seller-seen3")
-    buyer_token = await _register(client, email="buyer-seen3@example.com", username="buyer-seen3")
-    listing = await _create_listing(
-        client, token=seller_token, category_id=category.id
+    seller_token = await _register(
+        client, email="seller-seen3@example.com", username="seller-seen3"
     )
+    buyer_token = await _register(
+        client, email="buyer-seen3@example.com", username="buyer-seen3"
+    )
+    listing = await _create_listing(client, token=seller_token, category_id=category.id)
     await _activate_listing(client, token=seller_token, listing_id=listing["id"])
 
     resp = await client.get(
@@ -290,10 +306,10 @@ async def test_get_listing_counts_seen_when_flag_true(client, session_factory):
 
 async def test_get_listing_counts_repeated_anonymous_seen(client, session_factory):
     category = await _create_category(session_factory, name="Electronics")
-    seller_token = await _register(client, email="seller-seen4@example.com", username="seller-seen4")
-    listing = await _create_listing(
-        client, token=seller_token, category_id=category.id
+    seller_token = await _register(
+        client, email="seller-seen4@example.com", username="seller-seen4"
     )
+    listing = await _create_listing(client, token=seller_token, category_id=category.id)
     await _activate_listing(client, token=seller_token, listing_id=listing["id"])
 
     first_resp = await client.get(f"/api/listings/{listing['id']}?count_seen=true")
@@ -306,10 +322,10 @@ async def test_get_listing_counts_repeated_anonymous_seen(client, session_factor
 
 async def test_get_listing_does_not_count_owner_seen(client, session_factory):
     category = await _create_category(session_factory, name="Electronics")
-    seller_token = await _register(client, email="seller-seen5@example.com", username="seller-seen5")
-    listing = await _create_listing(
-        client, token=seller_token, category_id=category.id
+    seller_token = await _register(
+        client, email="seller-seen5@example.com", username="seller-seen5"
     )
+    listing = await _create_listing(client, token=seller_token, category_id=category.id)
     await _activate_listing(client, token=seller_token, listing_id=listing["id"])
 
     resp = await client.get(
@@ -319,6 +335,27 @@ async def test_get_listing_does_not_count_owner_seen(client, session_factory):
 
     assert resp.status_code == 200
     assert await _count_views(session_factory, listing_id=listing["id"]) == 0
+
+
+async def test_get_listing_with_invalid_token_stays_public_and_counts_anonymously(
+    client, session_factory
+):
+    category = await _create_category(session_factory, name="Electronics")
+    seller_token = await _register(
+        client, email="seller-seen6@example.com", username="seller-seen6"
+    )
+    listing = await _create_listing(client, token=seller_token, category_id=category.id)
+    await _activate_listing(client, token=seller_token, listing_id=listing["id"])
+
+    resp = await client.get(
+        f"/api/listings/{listing['id']}?count_seen=true",
+        headers={"Authorization": "Bearer invalid-token"},
+    )
+
+    assert resp.status_code == 200
+    views = await _get_views(session_factory, listing_id=listing["id"])
+    assert len(views) == 1
+    assert views[0].viewer_user_id is None
 
 
 async def test_get_listing_not_found_returns_404(client):
@@ -457,9 +494,15 @@ async def test_get_my_listings_requires_auth(client):
 
 async def test_get_my_stats_returns_dashboard_totals(client, session_factory):
     category = await _create_category(session_factory, name="Electronics")
-    seller_token = await _register(client, email="stats-seller@example.com", username="statsseller")
-    buyer_token = await _register(client, email="stats-buyer@example.com", username="statsbuyer")
-    other_token = await _register(client, email="stats-other@example.com", username="statsother")
+    seller_token = await _register(
+        client, email="stats-seller@example.com", username="statsseller"
+    )
+    buyer_token = await _register(
+        client, email="stats-buyer@example.com", username="statsbuyer"
+    )
+    other_token = await _register(
+        client, email="stats-other@example.com", username="statsother"
+    )
 
     promoted_listing = await _create_listing(
         client, token=seller_token, category_id=category.id
@@ -501,7 +544,9 @@ async def test_get_my_stats_returns_dashboard_totals(client, session_factory):
     unrelated_listing = await _create_listing(
         client, token=other_token, category_id=category.id
     )
-    await _activate_listing(client, token=other_token, listing_id=unrelated_listing["id"])
+    await _activate_listing(
+        client, token=other_token, listing_id=unrelated_listing["id"]
+    )
     unrelated_favourite = await client.post(
         f"/api/listings/favourites/{unrelated_listing['id']}",
         headers=_auth_header(seller_token),
@@ -537,8 +582,12 @@ async def test_get_my_stats_requires_auth(client):
 
 async def test_get_my_listings_include_owner_stats(client, session_factory):
     category = await _create_category(session_factory, name="Electronics")
-    seller_token = await _register(client, email="owner-stats@example.com", username="ownerstats")
-    buyer_token = await _register(client, email="viewer-stats@example.com", username="viewerstats")
+    seller_token = await _register(
+        client, email="owner-stats@example.com", username="ownerstats"
+    )
+    buyer_token = await _register(
+        client, email="viewer-stats@example.com", username="viewerstats"
+    )
 
     promoted_listing = await _create_listing(
         client, token=seller_token, category_id=category.id

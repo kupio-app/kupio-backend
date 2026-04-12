@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 from src.core.database.uow import UoW
 from src.core.dependencies import RepositoriesDeps, get_current_user, get_uow
+from src.domains.auth.exceptions import InvalidTokenError, InvalidTokenPayloadError
 from src.domains.categories.dependencies import get_categories_service
 from src.domains.categories.service import CategoriesService
 from src.domains.filter_definitions.dependencies import get_filter_def_service
@@ -61,4 +62,7 @@ async def get_optional_listing_viewer(
     if token is None:
         return None
 
-    return await get_current_user(repos=repos, token=token)
+    try:
+        return await get_current_user(repos=repos, token=token)
+    except InvalidTokenError, InvalidTokenPayloadError:
+        return None
