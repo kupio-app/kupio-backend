@@ -67,7 +67,7 @@ async def get_my_promotions(
 
 @router.get("/me/listings", response_model=ListListingsResponse)
 async def get_my_listings(
-    listing_status: ListingStatus = Query(alias="status"),
+    listing_status: ListingStatus | None = Query(None, alias="status"),
     pagination: PaginationParams = Depends(),
     current_user: User = Depends(get_current_user),
     service: ListingsService = Depends(get_listings_service),
