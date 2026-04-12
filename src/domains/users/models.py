@@ -1,7 +1,16 @@
 import uuid
 import datetime
 
-from sqlalchemy import String, Enum, DateTime, ForeignKey, Index, UniqueConstraint, func, and_
+from sqlalchemy import (
+    String,
+    Enum,
+    DateTime,
+    ForeignKey,
+    Index,
+    UniqueConstraint,
+    func,
+    and_,
+)
 from sqlalchemy.orm import Mapped as M, mapped_column as mc, relationship
 
 from src.core.database.base_model import Base, UUID, Int64
@@ -41,7 +50,7 @@ class User(Base, SoftDeleteMixin):
     @property
     def needs_username(self) -> bool:
         return self.username is None
-      
+
     @property
     def avatar_url(self) -> str | None:
         if self.avatar_image is None:
