@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, Query, status
 
-from src.core.dependencies import require_roles
+from src.core.dependencies import get_current_moderator
 from src.core.utils.pagination import PaginationParams
-from src.domains.users.enums import UserRole
-from src.domains.users.models import User
+from src.domains.users.models import Moderator
 
 from .dependencies import get_report_by_id, get_report_reason_by_id, get_reports_service
 from .enums import ReportSeenFilter, ReportStatus
@@ -31,7 +30,7 @@ async def get_report_reasons(
 @router.get("/reasons/all", response_model=list[ReportReasonResponse])
 async def get_all_report_reasons(
     service: ReportsService = Depends(get_reports_service),
-    _=Depends(require_roles(UserRole.MODERATOR)),
+    _moderator: Moderator = Depends(get_current_moderator),
 ):
     return await service.list_all_reasons()
 
@@ -44,7 +43,7 @@ async def get_all_report_reasons(
 async def create_report_reason(
     reason_data: ReportReasonCreateRequest,
     service: ReportsService = Depends(get_reports_service),
-    _=Depends(require_roles(UserRole.MODERATOR)),
+    _moderator: Moderator = Depends(get_current_moderator),
 ):
     return await service.create_reason(reason_data)
 
@@ -54,7 +53,7 @@ async def update_report_reason(
     reason_data: ReportReasonUpdateRequest,
     reason: ReportReason = Depends(get_report_reason_by_id),
     service: ReportsService = Depends(get_reports_service),
-    _=Depends(require_roles(UserRole.MODERATOR)),
+    _moderator: Moderator = Depends(get_current_moderator),
 ):
     return await service.update_reason(reason, reason_data)
 
@@ -64,7 +63,7 @@ async def get_reports(
     pagination: PaginationParams = Depends(),
     status: ReportStatus | None = Query(default=None),
     seen: ReportSeenFilter = Query(default=ReportSeenFilter.ALL),
-    current_user: User = Depends(require_roles(UserRole.MODERATOR)),
+    _moderator: Moderator = Depends(get_current_moderator),
     service: ReportsService = Depends(get_reports_service),
 ):
     return await service.list_reports(
@@ -78,17 +77,17 @@ async def get_reports(
 @router.get("/{report_id}", response_model=ReportDetailResponse)
 async def get_report_detail(
     report: ListingReport = Depends(get_report_by_id),
-    current_user: User = Depends(require_roles(UserRole.MODERATOR)),
+    current_moderator: Moderator = Depends(get_current_moderator),
     service: ReportsService = Depends(get_reports_service),
 ):
-    return await service.get_report_detail(report, current_user)
+    return await service.get_report_detail(report, current_moderator)
 
 
 @router.post("/{report_id}/decision", response_model=ReportDetailResponse)
 async def moderate_report(
     moderation_data: ModerateReportRequest,
     report: ListingReport = Depends(get_report_by_id),
-    current_user: User = Depends(require_roles(UserRole.MODERATOR)),
+    current_moderator: Moderator = Depends(get_current_moderator),
     service: ReportsService = Depends(get_reports_service),
 ):
-    return await service.moderate_report(report, current_user, moderation_data)
+    return await service.moderate_report(report, current_moderator, moderation_data)

@@ -17,12 +17,13 @@ from src.domains.promotions.repository import (
     PromotionPacketsRepository,
 )
 from src.domains.reports.repository import ReportReasonsRepository, ReportsRepository
-from src.domains.users.repository import UsersRepository
+from src.domains.users.repository import ModeratorsRepository, UsersRepository
 
 
 @dataclass(slots=True)
 class Repositories:
     users: UsersRepository
+    moderators: ModeratorsRepository
     sessions: SessionsRepository
     oauth_identities: OAuthIdentitiesRepository
     listings: ListingsRepository
@@ -42,6 +43,7 @@ class Repositories:
     def from_session(cls, session: AsyncSession) -> "Repositories":
         return cls(
             users=UsersRepository(session=session),
+            moderators=ModeratorsRepository(session=session),
             sessions=SessionsRepository(session=session),
             oauth_identities=OAuthIdentitiesRepository(session=session),
             listings=ListingsRepository(session=session),

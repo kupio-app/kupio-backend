@@ -63,9 +63,9 @@ class ListingReport(Base):
     additional_info: M[str | None] = mc(String(2000))
     status: M[ReportStatus] = mc(Enum(ReportStatus), nullable=False)
     seen_at: M[datetime.datetime | None]
-    seen_by_moderator_id: M[UUID | None] = mc(ForeignKey("users.id"))
+    seen_by_moderator_id: M[UUID | None] = mc(ForeignKey("moderators.id"))
     moderated_at: M[datetime.datetime | None]
-    moderator_id: M[UUID | None] = mc(ForeignKey("users.id"))
+    moderator_id: M[UUID | None] = mc(ForeignKey("moderators.id"))
     moderator_comment: M[str | None] = mc(String(2000))
 
     listing: M["Listing"] = relationship("Listing", lazy="joined")

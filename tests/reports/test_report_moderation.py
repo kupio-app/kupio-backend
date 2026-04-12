@@ -1,9 +1,9 @@
-from sqlalchemy import update
+from sqlalchemy import select
 
 from src.domains.categories.models import Category
 from src.domains.reports.models import ReportReason
 from src.domains.users.enums import UserRole
-from src.domains.users.models import User
+from src.domains.users.models import Moderator, User
 
 
 def _auth_header(token: str) -> dict:
@@ -32,11 +32,14 @@ async def _register(
 
 async def _make_moderator(session_factory, *, username: str) -> None:
     async with session_factory() as session:
-        await session.execute(
-            update(User)
-            .where(User.username == username)
-            .values(role=UserRole.MODERATOR)
-        )
+        user = await session.scalar(select(User).where(User.username == username))
+        assert user is not None
+        user.role = UserRole.MODERATOR
+        if (
+            await session.scalar(select(Moderator).where(Moderator.user_id == user.id))
+            is None
+        ):
+            session.add(Moderator(user_id=user.id))
         await session.commit()
 
 

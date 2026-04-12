@@ -4,9 +4,9 @@ import json
 
 from sqlalchemy.exc import IntegrityError
 
-from src.domains.listings.models import Listing
-from src.domains.users.models import User
 from src.domains.images.models import ListingImage
+from src.domains.listings.models import Listing
+from src.domains.users.models import Moderator, User
 from src.domains.reports.exceptions import (
     CannotReportOwnListingError,
     CustomReasonDetailsRequiredError,
@@ -180,15 +180,21 @@ class ReportsService:
     async def get_report_detail(
         self,
         report: ListingReport,
-        moderator: User,
+        moderator: Moderator,
     ) -> ReportDetailResponse:
+        now = self._utc_now()
         if report.seen_at is None:
             async with self.uow:
                 await self.reports_repo.mark_seen(
                     report_id=report.id,
                     moderator_id=moderator.id,
-                    seen_at=self._utc_now(),
+                    seen_at=now,
                 )
+                await self.repos.moderators.touch_last_action(moderator.id, at=now)
+            report = await self.get_report(report.id)
+        else:
+            async with self.uow:
+                await self.repos.moderators.touch_last_action(moderator.id, at=now)
             report = await self.get_report(report.id)
 
         return self._build_report_detail_response(report)
@@ -196,7 +202,7 @@ class ReportsService:
     async def moderate_report(
         self,
         report: ListingReport,
-        moderator: User,
+        moderator: Moderator,
         moderation_data: ModerateReportRequest,
     ) -> ReportDetailResponse:
         moderated_at = self._utc_now()
@@ -234,6 +240,7 @@ class ReportsService:
                     moderator_comment=moderation_data.comment,
                     exclude_report_id=report.id,
                 )
+            await self.repos.moderators.touch_last_action(moderator.id, at=moderated_at)
 
         return self._build_report_detail_response(await self.get_report(report.id))
 
