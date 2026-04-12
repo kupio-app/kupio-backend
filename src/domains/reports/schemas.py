@@ -1,11 +1,10 @@
 import datetime
-import re
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.database.base_model import UUID
-from src.core.utils.pydantic import NormalizedOptionalString
+from src.core.utils.pydantic import NormalizedOptionalString, validate_slug
 from src.domains.images.models import ListingImage
 from src.domains.listings.enums import CurrencyEnum, ListingStatus
 
@@ -14,17 +13,6 @@ from .enums import ReportDecisionAction, ReportStatus
 if TYPE_CHECKING:
     from src.domains.listings.models import Listing
     from src.domains.reports.models import ListingReport, ReportReason
-
-_SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*$")
-
-
-def _validate_slug(v: str) -> str:
-    if not _SLUG_RE.match(v):
-        raise ValueError(
-            "slug must start with a lowercase letter and contain only lowercase letters, digits, and underscores"
-        )
-
-    return v
 
 
 class ReportReasonCreateRequest(BaseModel):
@@ -37,7 +25,7 @@ class ReportReasonCreateRequest(BaseModel):
     @field_validator("slug")
     @classmethod
     def validate_slug(cls, v: str) -> str:
-        return _validate_slug(v)
+        return validate_slug(v)
 
 
 class ReportReasonUpdateRequest(BaseModel):
