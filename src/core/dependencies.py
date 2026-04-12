@@ -16,7 +16,8 @@ from src.domains.auth.exceptions import (
     InvalidTokenError,
     InvalidTokenPayloadError,
 )
-from src.domains.users.models import User
+from src.domains.users.enums import UserRole
+from src.domains.users.models import Moderator, User
 
 
 oauth2_scheme = OAuth2PasswordBearer(
@@ -75,6 +76,17 @@ def require_roles(*allowed_roles: str) -> Callable[..., Awaitable[User]]:
         return current_user
 
     return _checker
+
+
+async def get_current_moderator(
+    repos: RepositoriesDeps,
+    current_user: User = Depends(require_roles(UserRole.MODERATOR)),
+) -> Moderator:
+    moderator = await repos.moderators.get_by_user_id(current_user.id)
+    if moderator is None:
+        raise InsufficientPermissionsError()
+
+    return moderator
 
 
 def get_s3_storage_service(request: Request) -> S3StorageService:

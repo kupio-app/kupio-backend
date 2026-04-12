@@ -17,12 +17,14 @@ from src.domains.promotions.repository import (
     ListingPromotionsRepository,
     PromotionPacketsRepository,
 )
-from src.domains.users.repository import UsersRepository, NotificationTokensRepository
+from src.domains.reports.repository import ReportReasonsRepository, ReportsRepository
+from src.domains.users.repository import ModeratorsRepository, UsersRepository, NotificationTokensRepository
 
 
 @dataclass(slots=True)
 class Repositories:
     users: UsersRepository
+    moderators: ModeratorsRepository
     sessions: SessionsRepository
     oauth_identities: OAuthIdentitiesRepository
     listings: ListingsRepository
@@ -36,6 +38,8 @@ class Repositories:
     conversations: ConversationsRepository
     messages: MessagesRepository
     notification_tokens: NotificationTokensRepository
+    report_reasons: ReportReasonsRepository
+    reports: ReportsRepository
     images: ImagesRepository
     listing_images: ListingImagesRepository
 
@@ -43,6 +47,7 @@ class Repositories:
     def from_session(cls, session: AsyncSession) -> "Repositories":
         return cls(
             users=UsersRepository(session=session),
+            moderators=ModeratorsRepository(session=session),
             sessions=SessionsRepository(session=session),
             oauth_identities=OAuthIdentitiesRepository(session=session),
             listings=ListingsRepository(session=session),
@@ -56,6 +61,8 @@ class Repositories:
             conversations=ConversationsRepository(session=session),
             messages=MessagesRepository(session=session),
             notification_tokens=NotificationTokensRepository(session=session),
+            report_reasons=ReportReasonsRepository(session=session),
+            reports=ReportsRepository(session=session),
             images=ImagesRepository(session=session),
             listing_images=ListingImagesRepository(session=session),
         )

@@ -1,35 +1,20 @@
 import datetime
-import re
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from src.core.utils.pydantic import OptionalSlugField, SlugField
 
 from .enums import FilterType
 from .utils import validate_select_options
 
-_SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*$")
-
-
-def _validate_slug(v: str) -> str:
-    if not _SLUG_RE.match(v):
-        raise ValueError(
-            "slug must start with a lowercase letter and contain only lowercase letters, digits, and underscores"
-        )
-
-    return v
-
 
 class FilterDefinitionRequest(BaseModel):
-    slug: str = Field(max_length=100)
+    slug: SlugField
     label: str = Field(max_length=255)
     filter_type: FilterType
     options: dict | None = None
     is_required: bool = False
     display_order: int = Field(default=0, ge=0)
-
-    @field_validator("slug")
-    @classmethod
-    def validate_slug(cls, v: str) -> str:
-        return _validate_slug(v)
 
     @model_validator(mode="after")
     def validate_options(self) -> "FilterDefinitionRequest":
@@ -40,20 +25,12 @@ class FilterDefinitionRequest(BaseModel):
 
 
 class FilterDefinitionUpdateRequest(BaseModel):
-    slug: str = Field(None, max_length=100)
+    slug: OptionalSlugField = None
     label: str = Field(None, max_length=255)
     filter_type: FilterType = None
     options: dict | None = None
     is_required: bool = None
     display_order: int = Field(None, ge=0)
-
-    @field_validator("slug")
-    @classmethod
-    def validate_slug(cls, v: str | None) -> str | None:
-        if v is not None:
-            return _validate_slug(v)
-
-        return v
 
     @model_validator(mode="after")
     def validate_options(self) -> "FilterDefinitionUpdateRequest":

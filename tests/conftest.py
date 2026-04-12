@@ -17,6 +17,7 @@ import src.domains.favourites.models  # noqa: F401
 import src.domains.payments.models  # noqa: F401
 import src.domains.promotions.models  # noqa: F401
 import src.domains.chat.models  # noqa: F401
+import src.domains.reports.models  # noqa: F401
 import src.domains.images.models  # noqa: F401
 
 
