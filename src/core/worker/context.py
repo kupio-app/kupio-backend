@@ -36,4 +36,5 @@ async def lifespan() -> AsyncGenerator[WorkerContext, None]:
         yield WorkerContext(session_factory=session_factory)
     finally:
         await engine.dispose()
-        firebase_admin.delete_app(fb_app)
+        if fb_app is not None:
+            firebase_admin.delete_app(fb_app)
