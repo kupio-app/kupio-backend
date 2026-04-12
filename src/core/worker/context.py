@@ -1,3 +1,5 @@
+import firebase_admin
+
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import AsyncGenerator
@@ -6,6 +8,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
 from src.core.config import get_config
 from src.core.factories.database import _create_db_pool
+from src.core.factories.firebase import create_firebase_app
 
 # Register all models with SQLAlchemy mapper before any queries run
 import src.domains.users.models  # noqa: F401
@@ -28,7 +31,9 @@ class WorkerContext:
 async def lifespan() -> AsyncGenerator[WorkerContext, None]:
     config = get_config()
     engine, session_factory = _create_db_pool(config.postgres.build_url())
+    fb_app = create_firebase_app(config)
     try:
         yield WorkerContext(session_factory=session_factory)
     finally:
         await engine.dispose()
+        firebase_admin.delete_app(fb_app)
