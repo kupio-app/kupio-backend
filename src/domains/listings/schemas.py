@@ -31,6 +31,19 @@ class ListListingsResponse(BaseModel):
     next_cursor: str | None
 
 
+class OwnerListingResponse(ListingResponse):
+    seen_count: int
+    favourites_count: int
+    chats_count: int
+    is_promoted: bool
+    promotion_expires_at: datetime.datetime | None
+
+
+class ListOwnerListingsResponse(BaseModel):
+    listings: list[OwnerListingResponse]
+    next_cursor: str | None
+
+
 class ListingRequest(BaseModel):
     title: str = Field(min_length=10, max_length=255)
     description: str = Field(min_length=50, max_length=5000)

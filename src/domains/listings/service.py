@@ -9,8 +9,14 @@ from src.domains.users.models import User
 from .enums import ListingStatus
 from .exceptions import ListingNotFoundError
 from .models import Listing
-from .repository import ListingsRepository
-from .schemas import ListListingsResponse, ListingRequest, ListingResponse
+from .repository import ListingsRepository, OwnerListingStats, OwnerDashboardStats
+from .schemas import (
+    ListListingsResponse,
+    ListOwnerListingsResponse,
+    ListingRequest,
+    ListingResponse,
+    OwnerListingResponse,
+)
 
 
 class ListingsService:
@@ -119,6 +125,36 @@ class ListingsService:
 
         return listing
 
+    async def list_owned_listings(
+        self,
+        user_id: UUID,
+        *,
+        status: ListingStatus | None = None,
+        limit: int = 20,
+        cursor: str | None = None,
+    ) -> ListOwnerListingsResponse:
+        cursor_created_at, cursor_id = decode_cursor(cursor) if cursor else (None, None)
+        listings = await self.listings_repo.search_all_with_owner_stats(
+            user_id=user_id,
+            status=status,
+            limit=limit,
+            cursor_created_at=cursor_created_at,
+            cursor_id=cursor_id,
+        )
+        next_cursor = (
+            encode_cursor(listings[-1].listing.created_at, listings[-1].listing.id)
+            if len(listings) == limit
+            else None
+        )
+
+        return ListOwnerListingsResponse(
+            listings=[self._build_owner_listing_response(listing) for listing in listings],
+            next_cursor=next_cursor,
+        )
+
+    async def get_owner_dashboard_stats(self, user_id: UUID) -> OwnerDashboardStats:
+        return await self.listings_repo.get_owner_dashboard_stats(user_id)
+
     async def get_listing_for_response(
         self,
         listing_id: UUID,
@@ -157,3 +193,17 @@ class ListingsService:
             return False
 
         return current_user is None or current_user.id != listing.user_id
+
+    @staticmethod
+    def _build_owner_listing_response(
+        listing_stats: OwnerListingStats,
+    ) -> OwnerListingResponse:
+        listing_data = ListingResponse.model_validate(listing_stats.listing).model_dump()
+        return OwnerListingResponse(
+            **listing_data,
+            seen_count=listing_stats.seen_count,
+            favourites_count=listing_stats.favourites_count,
+            chats_count=listing_stats.chats_count,
+            is_promoted=listing_stats.is_promoted,
+            promotion_expires_at=listing_stats.promotion_expires_at,
+        )
