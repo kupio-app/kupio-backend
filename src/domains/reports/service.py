@@ -1,4 +1,3 @@
-import binascii
 import base64
 import datetime
 import json
@@ -355,7 +354,7 @@ class ReportsService:
 
         try:
             data = json.loads(base64.urlsafe_b64decode(cursor))
-        except TypeError, ValueError, binascii.Error:
+        except ValueError:
             return None, None
 
         if "created_at" not in data or "id" not in data:
