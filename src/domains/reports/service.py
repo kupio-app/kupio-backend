@@ -3,7 +3,6 @@ import datetime
 from sqlalchemy.exc import IntegrityError
 
 from src.core.utils.pagination import decode_int_cursor, encode_int_cursor
-from src.domains.images.models import ListingImage
 from src.domains.listings.models import Listing
 from src.domains.users.models import Moderator, User
 from src.domains.reports.exceptions import (
@@ -24,13 +23,9 @@ from src.domains.reports.schemas import (
     ListReportsResponse,
     ModerateReportRequest,
     ReportDetailResponse,
-    ReportListingDetail,
     ReportListItem,
-    ReportListingSummary,
-    ReportReasonSummary,
     ReportReasonCreateRequest,
     ReportReasonUpdateRequest,
-    ReportSellerSummary,
     ReportsDashboardStats,
     CreateListingReportRequest,
 )
@@ -142,7 +137,7 @@ class ReportsService:
                 raise DuplicatePendingListingReportError() from exc
             raise
 
-        return self._build_created_report_response(report)
+        return CreatedListingReportResponse.build_from(report)
 
     async def list_reports(
         self,
@@ -174,7 +169,13 @@ class ReportsService:
                 no_action=stats.no_action,
                 unseen=stats.unseen,
             ),
-            reports=[self._build_report_list_item(report) for report in reports],
+            reports=[
+                ReportListItem.build_from(
+                    report,
+                    additional_info_preview_length=ADDITIONAL_INFO_PREVIEW_LENGTH,
+                )
+                for report in reports
+            ],
             next_cursor=next_cursor,
         )
 
@@ -198,7 +199,7 @@ class ReportsService:
                 await self.repos.moderators.touch_last_action(moderator.id, at=now)
             report = await self.get_report(report.id)
 
-        return self._build_report_detail_response(report)
+        return ReportDetailResponse.build_from(report)
 
     async def moderate_report(
         self,
@@ -243,106 +244,7 @@ class ReportsService:
                 )
             await self.repos.moderators.touch_last_action(moderator.id, at=moderated_at)
 
-        return self._build_report_detail_response(await self.get_report(report.id))
-
-    def _build_reason_summary(self, reason: ReportReason) -> ReportReasonSummary:
-        return ReportReasonSummary(
-            id=reason.id,
-            slug=reason.slug,
-            title=reason.title,
-            description=reason.description,
-        )
-
-    def _build_seller_summary(self, listing: Listing) -> ReportSellerSummary:
-        return ReportSellerSummary(
-            id=listing.user.id,
-            username=listing.user.username,
-            display_name=listing.user.display_name,
-        )
-
-    def _build_listing_summary(self, listing: Listing) -> ReportListingSummary:
-        return ReportListingSummary(
-            id=listing.id,
-            title=listing.title,
-            price=listing.price,
-            currency=listing.currency,
-            status=listing.status,
-            primary_image_url=self._build_primary_image_url(listing),
-        )
-
-    def _build_listing_detail(self, listing: Listing) -> ReportListingDetail:
-        return ReportListingDetail(
-            id=listing.id,
-            title=listing.title,
-            description=listing.description,
-            price=listing.price,
-            currency=listing.currency,
-            status=listing.status,
-            primary_image_url=self._build_primary_image_url(listing),
-        )
-
-    def _build_created_report_response(
-        self,
-        report: ListingReport,
-    ) -> CreatedListingReportResponse:
-        return CreatedListingReportResponse(
-            id=report.id,
-            listing_id=report.listing_id,
-            reason=self._build_reason_summary(report.reason),
-            additional_info=report.additional_info,
-            status=report.status,
-            created_at=report.created_at,
-            updated_at=report.updated_at,
-        )
-
-    def _build_report_list_item(self, report: ListingReport) -> ReportListItem:
-        return ReportListItem(
-            id=report.id,
-            status=report.status,
-            created_at=report.created_at,
-            seen=report.seen_at is not None,
-            reason=self._build_reason_summary(report.reason),
-            additional_info_preview=self._build_additional_info_preview(
-                report.additional_info
-            ),
-            listing=self._build_listing_summary(report.listing),
-            seller=self._build_seller_summary(report.listing),
-        )
-
-    def _build_report_detail_response(
-        self,
-        report: ListingReport,
-    ) -> ReportDetailResponse:
-        return ReportDetailResponse(
-            id=report.id,
-            status=report.status,
-            created_at=report.created_at,
-            updated_at=report.updated_at,
-            additional_info=report.additional_info,
-            reason=self._build_reason_summary(report.reason),
-            listing=self._build_listing_detail(report.listing),
-            seller=self._build_seller_summary(report.listing),
-            seen_at=report.seen_at,
-            seen_by_moderator_id=report.seen_by_moderator_id,
-            moderated_at=report.moderated_at,
-            moderator_id=report.moderator_id,
-            moderator_comment=report.moderator_comment,
-        )
-
-    def _build_additional_info_preview(self, value: str | None) -> str | None:
-        if value is None or len(value) <= ADDITIONAL_INFO_PREVIEW_LENGTH:
-            return value
-
-        return value[:ADDITIONAL_INFO_PREVIEW_LENGTH].rstrip() + "..."
-
-    def _build_primary_image_url(self, listing: Listing) -> str | None:
-        for listing_image in listing.images:
-            if (
-                isinstance(listing_image, ListingImage)
-                and listing_image.image is not None
-            ):
-                return listing_image.image.url
-        return None
+        return ReportDetailResponse.build_from(await self.get_report(report.id))
 
     def _resolve_seen_filter(self, seen: ReportSeenFilter) -> bool | None:
         if seen == ReportSeenFilter.SEEN:
