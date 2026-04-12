@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from src.core.database.base_repository import BaseRepository
 
 from .enums import UserRole, DevicePlatform
-from .models import User, DeviceToken
+from .models import User, NotificationToken
 
 
 class UsersRepository(BaseRepository):
@@ -101,13 +101,13 @@ class UsersRepository(BaseRepository):
         )
 
 
-class DeviceTokensRepository(BaseRepository):
+class NotificationTokensRepository(BaseRepository):
     async def upsert(
         self, *, user_id: uuid.UUID, token: str, platform: DevicePlatform
-    ) -> DeviceToken:
+    ) -> NotificationToken:
         now = datetime.datetime.now(datetime.UTC)
         stmt = (
-            pg_insert(DeviceToken)
+            pg_insert(NotificationToken)
             .values(
                 user_id=user_id,
                 token=token,
@@ -115,10 +115,10 @@ class DeviceTokensRepository(BaseRepository):
                 last_seen_at=now,
             )
             .on_conflict_do_update(
-                constraint="uq_device_token_user_platform_token",
+                constraint="uq_notification_token_user_platform_token",
                 set_={"last_seen_at": now},
             )
-            .returning(DeviceToken)
+            .returning(NotificationToken)
         )
         result = await self.session.scalar(stmt)
         await self.session.flush()
@@ -126,14 +126,16 @@ class DeviceTokensRepository(BaseRepository):
 
     async def touch_last_seen(self, token_id: uuid.UUID) -> None:
         await self._update(
-            DeviceToken,
-            [DeviceToken.id == token_id],
+            NotificationToken,
+            [NotificationToken.id == token_id],
             load_result=False,
             last_seen_at=datetime.datetime.now(datetime.UTC),
         )
 
-    async def get_tokens_for_user(self, user_id: uuid.UUID) -> list[DeviceToken]:
-        return await self._get_many(DeviceToken, DeviceToken.user_id == user_id)
+    async def get_tokens_for_user(self, user_id: uuid.UUID) -> list[NotificationToken]:
+        return await self._get_many(
+            NotificationToken, NotificationToken.user_id == user_id
+        )
 
     async def delete_by_id(self, token_id: uuid.UUID) -> None:
-        await self._delete(DeviceToken, DeviceToken.id == token_id)
+        await self._delete(NotificationToken, NotificationToken.id == token_id)

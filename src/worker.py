@@ -39,14 +39,16 @@ async def send_fcm_push(
 ) -> None:
     async with ctx.session_factory() as session:
         repos = Repositories.from_session(session)
-        tokens = await repos.device_tokens.get_tokens_for_user(UUID(recipient_user_id))
-        if not tokens:
+        notification_tokens = await repos.notification_tokens.get_tokens_for_user(
+            UUID(recipient_user_id)
+        )
+        if not notification_tokens:
             return
 
         loop = asyncio.get_running_loop()
         dead_token_ids: list[UUID] = []
 
-        for device_token in tokens:
+        for notification_token in notification_tokens:
             fcm_message = messaging.Message(
                 notification=messaging.Notification(
                     title="New message",
@@ -56,7 +58,7 @@ async def send_fcm_push(
                     "conversation_id": conversation_id,
                     "type": "chat_message",
                 },
-                token=device_token.token,
+                token=notification_token.token,
             )
 
             try:
@@ -65,14 +67,15 @@ async def send_fcm_push(
                 )
             except messaging.UnregisteredError:
                 logger.info(
-                    "FCM token unregistered, marking for deletion: %s", device_token.id
+                    "FCM token unregistered, marking for deletion: %s",
+                    notification_token.id,
                 )
-                dead_token_ids.append(device_token.id)
+                dead_token_ids.append(notification_token.id)
             except Exception:
-                logger.exception("FCM send failed for token %s", device_token.id)
+                logger.exception("FCM send failed for token %s", notification_token.id)
 
         if dead_token_ids:
             for tid in dead_token_ids:
-                await repos.device_tokens.delete_by_id(tid)
+                await repos.notification_tokens.delete_by_id(tid)
 
             await session.commit()

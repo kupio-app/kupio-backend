@@ -59,13 +59,21 @@ class User(Base, SoftDeleteMixin):
         return self.avatar_image.url
 
 
-class DeviceToken(Base):
-    __tablename__ = "device_tokens"
+class NotificationToken(Base):
+    """
+    Firebase Cloud Messaging (FCM) tokens for push notifications.
+    Each token is associated with a user and a device platform.
+    """
+
+    __tablename__ = "notification_tokens"
     __table_args__ = (
         UniqueConstraint(
-            "user_id", "platform", "token", name="uq_device_token_user_platform_token"
+            "user_id",
+            "platform",
+            "token",
+            name="uq_notification_token_user_platform_token",
         ),
-        Index("ix_device_tokens_user_id", "user_id"),
+        Index("ix_notification_tokens_user_id", "user_id"),
     )
 
     id: M[UUID] = mc(primary_key=True, default=uuid.uuid4)

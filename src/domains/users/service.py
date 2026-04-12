@@ -9,9 +9,13 @@ from .exceptions import (
     UserUsernameConflictError,
     UsernameAlreadySetError,
 )
-from .models import User, DeviceToken
-from .repository import UsersRepository
-from .schemas import SetUsernameRequest, UpdateUserProfile, RegisterDeviceTokenRequest
+from .models import User, NotificationToken
+from .repository import UsersRepository, NotificationTokensRepository
+from .schemas import (
+    SetUsernameRequest,
+    UpdateUserProfile,
+)
+from . import schemas as users_schemas
 
 
 class UsersService:
@@ -69,16 +73,21 @@ class UsersService:
             raise UserUsernameConflictError()
 
 
-class DeviceTokenService:
+class NotificationTokenService:
     def __init__(self, repos: Repositories, uow: UoW) -> None:
         self.repos = repos
+        self.notification_tokens_repo: NotificationTokensRepository = (
+            repos.notification_tokens
+        )
         self.uow = uow
 
     async def register_token(
-        self, current_user: User, req: RegisterDeviceTokenRequest
-    ) -> DeviceToken:
+        self,
+        current_user: User,
+        req: users_schemas.RegisterNotificationTokenRequest,
+    ) -> NotificationToken:
         async with self.uow:
-            return await self.repos.device_tokens.upsert(
+            return await self.notification_tokens_repo.upsert(
                 user_id=current_user.id,
                 token=req.token,
                 platform=req.platform,

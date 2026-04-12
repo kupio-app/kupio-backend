@@ -63,12 +63,12 @@ class SetUsernameRequest(BaseModel):
         return validate_username_format(v)
 
 
-class RegisterDeviceTokenRequest(BaseModel):
+class RegisterNotificationTokenRequest(BaseModel):
     token: str = Field(min_length=1, max_length=512)
     platform: DevicePlatform
 
 
-class DeviceTokenResponse(BaseModel):
+class NotificationTokenResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID

@@ -1,6 +1,6 @@
-"""Tests for POST /api/users/me/device-tokens.
+"""Tests for POST /api/users/me/notification-tokens.
 
-DeviceTokensRepository.upsert uses a PostgreSQL-specific ON CONFLICT clause.
+NotificationTokensRepository.upsert uses a PostgreSQL-specific ON CONFLICT clause.
 The tests patch it with a SQLite-compatible implementation so the rest of the
 stack (auth, routing, service) runs through the real code path.
 """
@@ -11,26 +11,23 @@ import uuid
 import pytest_asyncio
 from sqlalchemy import select
 
-from src.domains.users.models import DeviceToken
-from src.domains.users.repository import DeviceTokensRepository
-
-
-# ── SQLite-compatible upsert replacement ──────────────────────────────────────
+from src.domains.users.models import NotificationToken
+from src.domains.users.repository import NotificationTokensRepository
 
 
 async def _sqlite_upsert(
-    self: DeviceTokensRepository,
+    self: NotificationTokensRepository,
     *,
     user_id: uuid.UUID,
     token: str,
     platform,
-) -> DeviceToken:
+) -> NotificationToken:
     now = datetime.datetime.now(datetime.UTC)
     existing = await self.session.scalar(
-        select(DeviceToken).where(
-            DeviceToken.user_id == user_id,
-            DeviceToken.platform == platform,
-            DeviceToken.token == token,
+        select(NotificationToken).where(
+            NotificationToken.user_id == user_id,
+            NotificationToken.platform == platform,
+            NotificationToken.token == token,
         )
     )
     if existing is not None:
@@ -38,7 +35,7 @@ async def _sqlite_upsert(
         await self.session.flush()
         return existing
     return await self._add(
-        DeviceToken,
+        NotificationToken,
         user_id=user_id,
         token=token,
         platform=platform,
@@ -46,15 +43,9 @@ async def _sqlite_upsert(
     )
 
 
-# ── fixtures ──────────────────────────────────────────────────────────────────
-
-
 @pytest_asyncio.fixture(autouse=True)
-async def patch_device_token_upsert(monkeypatch):
-    monkeypatch.setattr(DeviceTokensRepository, "upsert", _sqlite_upsert)
-
-
-# ── helpers ───────────────────────────────────────────────────────────────────
+async def patch_notification_token_upsert(monkeypatch):
+    monkeypatch.setattr(NotificationTokensRepository, "upsert", _sqlite_upsert)
 
 
 def _auth_header(token: str) -> dict:
@@ -77,14 +68,11 @@ async def _register(
     return resp.json()["access_token"]
 
 
-# ── tests ─────────────────────────────────────────────────────────────────────
-
-
-async def test_register_device_token_returns_201(client):
+async def test_register_notification_token_returns_201(client):
     token = await _register(client, email="dt1@example.com", username="dt1")
 
     resp = await client.post(
-        "/api/users/me/device-tokens",
+        "/api/users/me/notification-tokens",
         headers=_auth_header(token),
         json={"token": "fcm-token-abc123", "platform": "android"},
     )
@@ -96,11 +84,11 @@ async def test_register_device_token_returns_201(client):
     assert "last_seen_at" in body
 
 
-async def test_register_device_token_response_structure(client):
+async def test_register_notification_token_response_structure(client):
     token = await _register(client, email="dt2@example.com", username="dt2")
 
     resp = await client.post(
-        "/api/users/me/device-tokens",
+        "/api/users/me/notification-tokens",
         headers=_auth_header(token),
         json={"token": "fcm-token-ios-xyz", "platform": "ios"},
     )
@@ -112,14 +100,14 @@ async def test_register_device_token_response_structure(client):
     uuid.UUID(body["id"])  # must be a valid UUID
 
 
-async def test_register_device_token_idempotent_updates_last_seen(client):
+async def test_register_notification_token_idempotent_updates_last_seen(client):
     """Registering the same (user, platform, token) tuple twice should not
     create a second row — it should update last_seen_at instead."""
     token = await _register(client, email="dt3@example.com", username="dt3")
     payload = {"token": "same-fcm-token", "platform": "android"}
 
     first = await client.post(
-        "/api/users/me/device-tokens",
+        "/api/users/me/notification-tokens",
         headers=_auth_header(token),
         json=payload,
     )
@@ -128,7 +116,7 @@ async def test_register_device_token_idempotent_updates_last_seen(client):
     first_seen = first.json()["last_seen_at"]
 
     second = await client.post(
-        "/api/users/me/device-tokens",
+        "/api/users/me/notification-tokens",
         headers=_auth_header(token),
         json=payload,
     )
@@ -137,17 +125,17 @@ async def test_register_device_token_idempotent_updates_last_seen(client):
     assert second.json()["last_seen_at"] >= first_seen
 
 
-async def test_register_device_token_different_platforms_are_separate(client):
+async def test_register_notification_token_different_platforms_are_separate(client):
     """Same token string on different platforms should be stored independently."""
     token = await _register(client, email="dt4@example.com", username="dt4")
 
     ios_resp = await client.post(
-        "/api/users/me/device-tokens",
+        "/api/users/me/notification-tokens",
         headers=_auth_header(token),
         json={"token": "apns-token-xyz", "platform": "ios"},
     )
     android_resp = await client.post(
-        "/api/users/me/device-tokens",
+        "/api/users/me/notification-tokens",
         headers=_auth_header(token),
         json={"token": "apns-token-xyz", "platform": "android"},
     )
@@ -157,20 +145,20 @@ async def test_register_device_token_different_platforms_are_separate(client):
     assert ios_resp.json()["id"] != android_resp.json()["id"]
 
 
-async def test_register_device_token_requires_auth(client):
+async def test_register_notification_token_requires_auth(client):
     resp = await client.post(
-        "/api/users/me/device-tokens",
+        "/api/users/me/notification-tokens",
         json={"token": "fcm-token", "platform": "android"},
     )
 
     assert resp.status_code == 401
 
 
-async def test_register_device_token_empty_token_returns_422(client):
+async def test_register_notification_token_empty_token_returns_422(client):
     token = await _register(client, email="dt6@example.com", username="dt6")
 
     resp = await client.post(
-        "/api/users/me/device-tokens",
+        "/api/users/me/notification-tokens",
         headers=_auth_header(token),
         json={"token": "", "platform": "android"},
     )
@@ -178,11 +166,11 @@ async def test_register_device_token_empty_token_returns_422(client):
     assert resp.status_code == 422
 
 
-async def test_register_device_token_invalid_platform_returns_422(client):
+async def test_register_notification_token_invalid_platform_returns_422(client):
     token = await _register(client, email="dt7@example.com", username="dt7")
 
     resp = await client.post(
-        "/api/users/me/device-tokens",
+        "/api/users/me/notification-tokens",
         headers=_auth_header(token),
         json={"token": "fcm-token-abc", "platform": "windows"},
     )
@@ -190,11 +178,11 @@ async def test_register_device_token_invalid_platform_returns_422(client):
     assert resp.status_code == 422
 
 
-async def test_register_device_token_missing_platform_returns_422(client):
+async def test_register_notification_token_missing_platform_returns_422(client):
     token = await _register(client, email="dt8@example.com", username="dt8")
 
     resp = await client.post(
-        "/api/users/me/device-tokens",
+        "/api/users/me/notification-tokens",
         headers=_auth_header(token),
         json={"token": "fcm-token-abc"},
     )
@@ -202,11 +190,11 @@ async def test_register_device_token_missing_platform_returns_422(client):
     assert resp.status_code == 422
 
 
-async def test_register_device_token_token_too_long_returns_422(client):
+async def test_register_notification_token_token_too_long_returns_422(client):
     token = await _register(client, email="dt9@example.com", username="dt9")
 
     resp = await client.post(
-        "/api/users/me/device-tokens",
+        "/api/users/me/notification-tokens",
         headers=_auth_header(token),
         json={"token": "x" * 513, "platform": "ios"},
     )

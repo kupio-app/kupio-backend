@@ -12,19 +12,19 @@ from src.domains.promotions.service import PromotionsService
 
 from .dependencies import (
     get_users_service,
-    get_device_token_service,
+    get_notification_token_service,
     get_user_by_username,
 )
 from .models import User
 from .schemas import (
-    DeviceTokenResponse,
-    RegisterDeviceTokenRequest,
+    NotificationTokenResponse,
+    RegisterNotificationTokenRequest,
     SetUsernameRequest,
     UpdateUserProfile,
     UserPrivate,
     UserPublic,
 )
-from .service import UsersService, DeviceTokenService
+from .service import UsersService, NotificationTokenService
 
 router = APIRouter()
 
@@ -84,14 +84,14 @@ async def get_my_listings(
 
 
 @router.post(
-    "/me/device-tokens",
-    response_model=DeviceTokenResponse,
+    "/me/notification-tokens",
+    response_model=NotificationTokenResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def register_device_token(
-    payload: RegisterDeviceTokenRequest,
+async def register_notification_token(
+    payload: RegisterNotificationTokenRequest,
     current_user: User = Depends(get_current_user),
-    service: DeviceTokenService = Depends(get_device_token_service),
+    service: NotificationTokenService = Depends(get_notification_token_service),
 ):
     return await service.register_token(current_user, payload)
 

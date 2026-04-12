@@ -108,7 +108,7 @@ class ChatWebSocketSession:
 
     async def _authorize_and_init(self, user_id: UUID) -> bool:
         """
-        Verify the user is a conversation participant, update device token timestamps,
+        Verify the user is a conversation participant, update notification token timestamps,
         send auth_ok, and replay any missed messages. Returns False if access is denied.
         """
         async with self.session_factory() as session:
@@ -117,7 +117,7 @@ class ChatWebSocketSession:
             if not await self._check_participant(repos, user_id):
                 return False
 
-            await self._touch_device_tokens(repos, session, user_id)
+            await self._touch_notification_tokens(repos, session, user_id)
             await self._send(WsAuthOkMessage(conversation_id=self.conversation_id))
             await self._replay_missed_messages(repos)
 
@@ -133,13 +133,15 @@ class ChatWebSocketSession:
 
         return True
 
-    async def _touch_device_tokens(
+    async def _touch_notification_tokens(
         self, repos: Repositories, session: AsyncSession, user_id: UUID
     ) -> None:
-        tokens = await repos.device_tokens.get_tokens_for_user(user_id)
-        if tokens:
-            for dt in tokens:
-                await repos.device_tokens.touch_last_seen(dt.id)
+        notification_tokens = await repos.notification_tokens.get_tokens_for_user(
+            user_id
+        )
+        if notification_tokens:
+            for notification_token in notification_tokens:
+                await repos.notification_tokens.touch_last_seen(notification_token.id)
             await session.commit()
 
     async def _replay_missed_messages(self, repos: Repositories) -> None:

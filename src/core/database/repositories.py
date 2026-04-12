@@ -17,7 +17,7 @@ from src.domains.promotions.repository import (
     ListingPromotionsRepository,
     PromotionPacketsRepository,
 )
-from src.domains.users.repository import UsersRepository, DeviceTokensRepository
+from src.domains.users.repository import UsersRepository, NotificationTokensRepository
 
 
 @dataclass(slots=True)
@@ -35,7 +35,7 @@ class Repositories:
     listing_promotions: ListingPromotionsRepository
     conversations: ConversationsRepository
     messages: MessagesRepository
-    device_tokens: DeviceTokensRepository
+    notification_tokens: NotificationTokensRepository
     images: ImagesRepository
     listing_images: ListingImagesRepository
 
@@ -55,7 +55,7 @@ class Repositories:
             listing_promotions=ListingPromotionsRepository(session=session),
             conversations=ConversationsRepository(session=session),
             messages=MessagesRepository(session=session),
-            device_tokens=DeviceTokensRepository(session=session),
+            notification_tokens=NotificationTokensRepository(session=session),
             images=ImagesRepository(session=session),
             listing_images=ListingImagesRepository(session=session),
         )
