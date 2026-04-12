@@ -27,6 +27,7 @@ dependencies = [
     "aiohttp (>=3.13.4,<4.0.0)",
     "streaq (>=6.3.3,<7.0.0)",
     "firebase-admin (>=7.4.0,<8.0.0)",
+    "websockets (>=16.0,<17.0)",
 ]
 
 
