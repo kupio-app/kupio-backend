@@ -119,3 +119,13 @@ class ListingsRepository(BaseRepository):
             Listing, [Listing.id == listing_id], load_result=False, **kwargs
         )
         return await self.get_for_response_by_id(listing_id, populate_existing=True)
+
+    async def soft_delete_by_id(self, listing_id: UUID) -> bool:
+        return await self._soft_delete(Listing, Listing.id == listing_id)
+
+    async def soft_delete_by_user_id(self, user_id: UUID) -> int:
+        return await self._soft_delete(
+            Listing,
+            Listing.user_id == user_id,
+            return_rowcount=True,
+        )

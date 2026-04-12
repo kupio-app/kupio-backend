@@ -10,6 +10,7 @@ from .promotions.router import (
     promotion_packets_router,
     listing_promotions_router,
 )
+from .reports.router import router as reports_router
 from .users.router import router as users_router
 from .images.router import router as image_router
 
@@ -34,6 +35,7 @@ api_router.include_router(
 )
 api_router.include_router(listings_router, tags=["Listings"], prefix="/listings")
 api_router.include_router(payments_router, tags=["Payments"], prefix="/payments")
+api_router.include_router(reports_router, tags=["Reports"], prefix="/reports")
 api_router.include_router(
     promotion_packets_router,
     tags=["Promotion Packets"],

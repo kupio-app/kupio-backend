@@ -5,9 +5,16 @@ from fastapi import APIRouter, Depends, Query
 from src.core.dependencies import get_current_user
 from src.core.exceptions import UnprocessableEntityError
 from src.core.utils.pagination import PaginationParams
+from src.domains.reports.dependencies import get_reports_service
+from src.domains.reports.schemas import (
+    CreateListingReportRequest,
+    CreatedListingReportResponse,
+)
+from src.domains.reports.service import ReportsService
 from src.domains.users.models import User
 
 from .dependencies import (
+    get_listing_by_id,
     get_listing_for_response_by_id,
     get_listings_service,
     get_owned_listing_by_id,
@@ -82,3 +89,17 @@ async def update_listing_status(
     service: ListingsService = Depends(get_listings_service),
 ):
     return await service.update_listing_status(listing.id, listing_data.status)
+
+
+@router.post(
+    "/{listing_id}/reports",
+    response_model=CreatedListingReportResponse,
+    status_code=201,
+)
+async def create_listing_report(
+    report_data: CreateListingReportRequest,
+    listing: Listing = Depends(get_listing_by_id),
+    current_user: User = Depends(get_current_user),
+    service: ReportsService = Depends(get_reports_service),
+):
+    return await service.create_report(current_user, listing, report_data)

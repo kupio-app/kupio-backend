@@ -1,11 +1,12 @@
 import uuid
+import datetime
 
 from sqlalchemy.orm import selectinload
 
 from src.core.database.base_repository import BaseRepository
 from .enums import UserRole
 
-from .models import User
+from .models import Moderator, User
 
 
 class UsersRepository(BaseRepository):
@@ -95,4 +96,30 @@ class UsersRepository(BaseRepository):
             [User.id == user_id],
             load_result=False,
             balance=User.balance + amount,
+        )
+
+    async def soft_delete_by_id(self, user_id: uuid.UUID) -> bool:
+        return await self._soft_delete(User, User.id == user_id)
+
+
+class ModeratorsRepository(BaseRepository):
+    async def create(self, *, user_id: uuid.UUID) -> Moderator:
+        return await self._add(Moderator, user_id=user_id)
+
+    async def get_by_id(self, moderator_id: uuid.UUID) -> Moderator | None:
+        return await self._get(Moderator, Moderator.id == moderator_id)
+
+    async def get_by_user_id(self, user_id: uuid.UUID) -> Moderator | None:
+        return await self._get(Moderator, Moderator.user_id == user_id)
+
+    async def touch_last_action(
+        self,
+        moderator_id: uuid.UUID,
+        *,
+        at: datetime.datetime,
+    ) -> Moderator | None:
+        return await self._update(
+            Moderator,
+            [Moderator.id == moderator_id],
+            last_action_at=at,
         )

@@ -1,3 +1,4 @@
+import datetime
 import uuid
 
 from sqlalchemy import String, Enum, ForeignKey, and_
@@ -46,3 +47,11 @@ class User(Base, SoftDeleteMixin):
             return None
 
         return self.avatar_image.url
+
+
+class Moderator(Base):
+    __tablename__ = "moderators"
+
+    id: M[UUID] = mc(primary_key=True, default=uuid.uuid4)
+    user_id: M[UUID] = mc(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    last_action_at: M[datetime.datetime | None]
