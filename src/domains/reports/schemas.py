@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.database.base_model import UUID
-from src.core.utils.pydantic import NormalizedOptionalString, validate_slug
+from src.core.utils.pydantic import NormalizedOptionalString, SlugField
 from src.domains.images.models import ListingImage
 from src.domains.listings.enums import CurrencyEnum, ListingStatus
 
@@ -16,16 +16,11 @@ if TYPE_CHECKING:
 
 
 class ReportReasonCreateRequest(BaseModel):
-    slug: str = Field(max_length=100)
+    slug: SlugField
     title: str = Field(max_length=255)
     description: str | None = Field(default=None, max_length=1000)
     display_order: int = Field(default=0, ge=0)
     is_active: bool = True
-
-    @field_validator("slug")
-    @classmethod
-    def validate_slug(cls, v: str) -> str:
-        return validate_slug(v)
 
 
 class ReportReasonUpdateRequest(BaseModel):

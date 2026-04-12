@@ -1,7 +1,7 @@
 import re
 from typing import Annotated
 
-from pydantic import BeforeValidator
+from pydantic import BeforeValidator, Field
 
 
 SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -16,6 +16,13 @@ def validate_slug(value: str) -> str:
     return value
 
 
+def validate_optional_slug(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    return validate_slug(value)
+
+
 def normalize_optional_string(value: str | None) -> str | None:
     if value is None:
         return None
@@ -27,4 +34,16 @@ def normalize_optional_string(value: str | None) -> str | None:
 NormalizedOptionalString = Annotated[
     str | None,
     BeforeValidator(normalize_optional_string),
+]
+
+SlugField = Annotated[
+    str,
+    Field(max_length=100),
+    BeforeValidator(validate_slug),
+]
+
+OptionalSlugField = Annotated[
+    str | None,
+    Field(default=None, max_length=100),
+    BeforeValidator(validate_optional_slug),
 ]
