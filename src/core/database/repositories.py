@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.auth.repository import OAuthIdentitiesRepository, SessionsRepository
 from src.domains.categories.repository import CategoriesRepository
+from src.domains.chat.repository import ConversationsRepository, MessagesRepository
 from src.domains.filter_definitions.repository import FilterDefinitionsRepository
 from src.domains.favourites.repository import FavouritesRepository
 from src.domains.images.repository import ImagesRepository, ListingImagesRepository
@@ -17,7 +18,7 @@ from src.domains.promotions.repository import (
     PromotionPacketsRepository,
 )
 from src.domains.reports.repository import ReportReasonsRepository, ReportsRepository
-from src.domains.users.repository import ModeratorsRepository, UsersRepository
+from src.domains.users.repository import ModeratorsRepository, UsersRepository, NotificationTokensRepository
 
 
 @dataclass(slots=True)
@@ -34,6 +35,9 @@ class Repositories:
     payments_sessions: PaymentSessionRepository
     promotion_packets: PromotionPacketsRepository
     listing_promotions: ListingPromotionsRepository
+    conversations: ConversationsRepository
+    messages: MessagesRepository
+    notification_tokens: NotificationTokensRepository
     report_reasons: ReportReasonsRepository
     reports: ReportsRepository
     images: ImagesRepository
@@ -54,6 +58,9 @@ class Repositories:
             payments_sessions=PaymentSessionRepository(session=session),
             promotion_packets=PromotionPacketsRepository(session=session),
             listing_promotions=ListingPromotionsRepository(session=session),
+            conversations=ConversationsRepository(session=session),
+            messages=MessagesRepository(session=session),
+            notification_tokens=NotificationTokensRepository(session=session),
             report_reasons=ReportReasonsRepository(session=session),
             reports=ReportsRepository(session=session),
             images=ImagesRepository(session=session),

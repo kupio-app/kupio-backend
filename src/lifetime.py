@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from src.core.config import get_config
 from src.core.factories.database import init_db, shutdown_db
+from src.core.factories.firebase import init_firebase, shutdown_firebase
 from src.core.factories.redis import init_redis, shutdown_redis
 from src.core.factories.stripe import init_stripe
 from src.core.factories.s3 import init_s3, shutdown_s3
@@ -17,6 +18,7 @@ async def lifespan(app: FastAPI):
     init_redis(app, config)
     init_stripe(app, config)
     init_s3(app, config)
+    init_firebase(app, config)
 
     try:
         yield
@@ -24,3 +26,4 @@ async def lifespan(app: FastAPI):
         await shutdown_db(app)
         await shutdown_redis(app)
         await shutdown_s3(app)
+        shutdown_firebase(app)

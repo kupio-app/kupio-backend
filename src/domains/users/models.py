@@ -1,13 +1,24 @@
 import datetime
 import uuid
+import datetime
 
-from sqlalchemy import String, Enum, ForeignKey, and_
+from sqlalchemy import (
+    String,
+    Enum,
+    DateTime,
+    ForeignKey,
+    Index,
+    UniqueConstraint,
+    func,
+    and_,
+)
 from sqlalchemy.orm import Mapped as M, mapped_column as mc, relationship
 
 from src.core.database.base_model import Base, UUID, Int64
 from src.core.database.mixins import SoftDeleteMixin
 from src.domains.images.models import Image
-from src.domains.users.enums import UserRole
+
+from .enums import UserRole, DevicePlatform
 
 
 class User(Base, SoftDeleteMixin):
@@ -48,6 +59,30 @@ class User(Base, SoftDeleteMixin):
 
         return self.avatar_image.url
 
+
+class NotificationToken(Base):
+    """
+    Firebase Cloud Messaging (FCM) tokens for push notifications.
+    Each token is associated with a user and a device platform.
+    """
+
+    __tablename__ = "notification_tokens"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "platform",
+            "token",
+            name="uq_notification_token_user_platform_token",
+        ),
+        Index("ix_notification_tokens_user_id", "user_id"),
+    )
+
+    id: M[UUID] = mc(primary_key=True, default=uuid.uuid4)
+    user_id: M[UUID] = mc(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token: M[str] = mc(String(512), nullable=False)
+    platform: M[DevicePlatform] = mc(Enum(DevicePlatform), nullable=False)
+    last_seen_at: M[datetime.datetime] = mc(DateTime(timezone=True), default=func.now())
+      
 
 class Moderator(Base):
     __tablename__ = "moderators"

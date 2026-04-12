@@ -109,12 +109,38 @@ Copy `.env.dist` to `.env` and configure the values below.
 | `SERVER__PORT` | no | `8080` | Server port |
 | `SERVER__RELOAD` | no | `false` | Enable auto-reload (dev only) |
 | `SERVER__DEBUG` | no | `false` | Enable debug mode and Swagger UI |
+| `FIREBASE__CREDENTIALS_PATH` | yes | - | Path to Firebase service account JSON file |
+| `FIREBASE__PROJECT_ID` | yes | - | Firebase project ID |
 | `STRIPE__SECRET_KEY` | yes | - | Stripe secret key (`sk_test_...` for dev) |
 | `STRIPE__WEBHOOK_SECRET` | yes | - | Stripe webhook signing secret (`whsec_...`) |
 | `STRIPE__SUCCESS_URL` | yes | - | Redirect URL after successful payment |
 | `STRIPE__CANCEL_URL` | yes | - | Redirect URL after cancelled payment |
 
 > **When running with Docker (`make app-run`):** `SERVER__HOST`, `POSTGRES__HOST`, and `REDIS__HOST` are automatically set to the correct values for the container network - you do not need to change them.
+
+## Firebase Setup
+
+Firebase is used for sending push notifications to mobile devices (FCM).
+
+### 1. Generate a service account key
+
+1. Open the [Firebase Console](https://console.firebase.google.com) and select your project
+2. Go to **Project Settings** → **Service accounts**
+3. Click **Generate new private key** → **Generate key**
+4. A `.json` file will download — this is your credentials file
+
+### 2. Configure the app
+
+Place the downloaded file in the project root (or any path you prefer) and set the following in `.env`:
+
+```env
+FIREBASE__CREDENTIALS_PATH=firebase-creds.json
+FIREBASE__PROJECT_ID=your-firebase-project-id
+```
+
+The path is resolved from the working directory where the server is launched (the project root when using `make run`).
+
+> **Important:** Add the credentials file to `.gitignore` — never commit it to version control.
 
 ## Make Commands
 

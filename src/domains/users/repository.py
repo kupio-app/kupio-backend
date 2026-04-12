@@ -1,12 +1,13 @@
 import uuid
 import datetime
 
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import selectinload
 
 from src.core.database.base_repository import BaseRepository
-from .enums import UserRole
 
-from .models import Moderator, User
+from .enums import UserRole, DevicePlatform
+from .models import User, NotificationToken, Moderator
 
 
 class UsersRepository(BaseRepository):
@@ -97,9 +98,49 @@ class UsersRepository(BaseRepository):
             load_result=False,
             balance=User.balance + amount,
         )
-
+        
     async def soft_delete_by_id(self, user_id: uuid.UUID) -> bool:
         return await self._soft_delete(User, User.id == user_id)
+
+
+class NotificationTokensRepository(BaseRepository):
+    async def upsert(
+        self, *, user_id: uuid.UUID, token: str, platform: DevicePlatform
+    ) -> NotificationToken:
+        now = datetime.datetime.now(datetime.UTC)
+        stmt = (
+            pg_insert(NotificationToken)
+            .values(
+                user_id=user_id,
+                token=token,
+                platform=platform,
+                last_seen_at=now,
+            )
+            .on_conflict_do_update(
+                constraint="uq_notification_token_user_platform_token",
+                set_={"last_seen_at": now},
+            )
+            .returning(NotificationToken)
+        )
+        result = await self.session.scalar(stmt)
+        await self.session.flush()
+        return result
+
+    async def touch_last_seen(self, token_id: uuid.UUID) -> None:
+        await self._update(
+            NotificationToken,
+            [NotificationToken.id == token_id],
+            load_result=False,
+            last_seen_at=datetime.datetime.now(datetime.UTC),
+        )
+
+    async def get_tokens_for_user(self, user_id: uuid.UUID) -> list[NotificationToken]:
+        return await self._get_many(
+            NotificationToken, NotificationToken.user_id == user_id
+        )
+
+    async def delete_by_id(self, token_id: uuid.UUID) -> None:
+        await self._delete(NotificationToken, NotificationToken.id == token_id)
 
 
 class ModeratorsRepository(BaseRepository):

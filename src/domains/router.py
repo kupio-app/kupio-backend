@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from .auth.router import router as auth_router
 from .categories.router import router as categories_router
+from .chat.router import router as chat_router
 from .filter_definitions.router import router as filter_definitions_router
 from .favourites.router import router as favourites_router
 from .listings.router import router as listings_router
@@ -41,4 +42,5 @@ api_router.include_router(
     tags=["Promotion Packets"],
     prefix="/promotions/packets",
 )
+api_router.include_router(chat_router, tags=["Chat"], prefix="/chat")
 api_router.include_router(image_router, tags=["Images"])

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status, Query
 
 from src.core.dependencies import get_current_user
 from src.core.utils.pagination import PaginationParams
@@ -10,10 +10,21 @@ from src.domains.promotions.dependencies import get_promotions_service
 from src.domains.promotions.schemas import ListPromotionsResponse
 from src.domains.promotions.service import PromotionsService
 
-from .dependencies import get_users_service, get_user_by_username
+from .dependencies import (
+    get_users_service,
+    get_notification_token_service,
+    get_user_by_username,
+)
 from .models import User
-from .schemas import SetUsernameRequest, UpdateUserProfile, UserPrivate, UserPublic
-from .service import UsersService
+from .schemas import (
+    NotificationTokenResponse,
+    RegisterNotificationTokenRequest,
+    SetUsernameRequest,
+    UpdateUserProfile,
+    UserPrivate,
+    UserPublic,
+)
+from .service import UsersService, NotificationTokenService
 
 router = APIRouter()
 
@@ -59,14 +70,30 @@ async def get_my_promotions(
 
 @router.get("/me/listings", response_model=ListListingsResponse)
 async def get_my_listings(
-    status: ListingStatus | None = None,
+    listing_status: ListingStatus | None = Query(None, alias="status"),
     pagination: PaginationParams = Depends(),
     current_user: User = Depends(get_current_user),
     service: ListingsService = Depends(get_listings_service),
 ):
     return await service.list_listings(
-        current_user.id, status=status, limit=pagination.limit, cursor=pagination.cursor
+        current_user.id,
+        status=listing_status,
+        limit=pagination.limit,
+        cursor=pagination.cursor,
     )
+
+
+@router.post(
+    "/me/notification-tokens",
+    response_model=NotificationTokenResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def register_notification_token(
+    payload: RegisterNotificationTokenRequest,
+    current_user: User = Depends(get_current_user),
+    service: NotificationTokenService = Depends(get_notification_token_service),
+):
+    return await service.register_token(current_user, payload)
 
 
 @router.get("/{username}", response_model=UserPublic)

@@ -16,6 +16,7 @@ import src.domains.listings.models  # noqa: F401
 import src.domains.favourites.models  # noqa: F401
 import src.domains.payments.models  # noqa: F401
 import src.domains.promotions.models  # noqa: F401
+import src.domains.chat.models  # noqa: F401
 import src.domains.reports.models  # noqa: F401
 import src.domains.images.models  # noqa: F401
 
@@ -83,8 +84,29 @@ async def app(session_factory, monkeypatch: pytest.MonkeyPatch):
         def download_object(self, key: str) -> bytes:
             return self._objects[key]
 
+    class _FakeCheckoutSessions:
+        async def create_async(self, *args, **kwargs):
+            return type(
+                "PaymentSession",
+                (),
+                {"id": "cs_test_123", "url": "https://checkout.example/session"},
+            )()
+
+    class _FakeStripeClient:
+        def __init__(self, api_key: str):
+            self.v1 = type(
+                "V1",
+                (),
+                {
+                    "checkout": type(
+                        "Checkout", (), {"sessions": _FakeCheckoutSessions()}
+                    )()
+                },
+            )()
+
     cfg = get_config()
     app.state.s3_storage = _StubS3Storage(cfg.s3.bucket, cfg.s3.region)
+    app.state.stripe_client = _FakeStripeClient("sk_test")
 
     async def _override_get_db_session():
         async with session_factory() as session:
