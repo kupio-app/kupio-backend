@@ -1,9 +1,8 @@
-import base64
 import datetime
-import json
 
 from sqlalchemy.exc import IntegrityError
 
+from src.core.utils.pagination import decode_int_cursor, encode_int_cursor
 from src.domains.images.models import ListingImage
 from src.domains.listings.models import Listing
 from src.domains.users.models import Moderator, User
@@ -153,7 +152,9 @@ class ReportsService:
         status: ReportStatus | None = None,
         seen: ReportSeenFilter = ReportSeenFilter.ALL,
     ) -> ListReportsResponse:
-        cursor_created_at, cursor_id = self._decode_reports_cursor(cursor)
+        cursor_created_at, cursor_id = (
+            decode_int_cursor(cursor) if cursor else (None, None)
+        )
         reports = await self.reports_repo.list_reports(
             limit=limit,
             status=status,
@@ -163,7 +164,7 @@ class ReportsService:
         )
         stats = await self.reports_repo.get_dashboard_stats()
         next_cursor = (
-            self._encode_reports_cursor(reports[-1].created_at, reports[-1].id)
+            encode_int_cursor(reports[-1].created_at, reports[-1].id)
             if len(reports) == limit
             else None
         )
@@ -349,38 +350,6 @@ class ReportsService:
         if seen == ReportSeenFilter.UNSEEN:
             return False
         return None
-
-    def _decode_reports_cursor(
-        self,
-        cursor: str | None,
-    ) -> tuple[datetime.datetime | None, int | None]:
-        if cursor is None:
-            return None, None
-
-        try:
-            data = json.loads(base64.urlsafe_b64decode(cursor))
-        except ValueError:
-            return None, None
-
-        if "created_at" not in data or "id" not in data:
-            return None, None
-
-        try:
-            created_at = datetime.datetime.fromisoformat(data["created_at"])
-        except TypeError, ValueError:
-            return None, None
-        if created_at.tzinfo is not None:
-            created_at = created_at.astimezone(datetime.UTC).replace(tzinfo=None)
-
-        return created_at, int(data["id"])
-
-    def _encode_reports_cursor(
-        self,
-        created_at: datetime.datetime,
-        report_id: int,
-    ) -> str:
-        data = {"created_at": created_at.isoformat(), "id": report_id}
-        return base64.urlsafe_b64encode(json.dumps(data).encode()).decode()
 
     def _utc_now(self) -> datetime.datetime:
         return datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
