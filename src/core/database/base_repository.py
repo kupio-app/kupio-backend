@@ -1,7 +1,6 @@
-import datetime
 from typing import Any, Optional, Sequence, TypeVar
 
-from sqlalchemy import ColumnExpressionArgument, delete, insert, select, update
+from sqlalchemy import ColumnExpressionArgument, delete, insert, select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.base import ExecutableOption
 
@@ -103,7 +102,7 @@ class BaseRepository:
         result = await self.session.execute(
             update(model)
             .where(*conditions, model.deleted_at.is_(None))
-            .values(deleted_at=datetime.datetime.now(datetime.UTC))
+            .values(deleted_at=func.now())
         )
         await self.session.flush()
         return bool(getattr(result, "rowcount", 0) > 0)
