@@ -104,14 +104,18 @@ class BaseRepository:
         self,
         model: type[SoftDeleteModelType],
         *conditions: ColumnExpressionArgument[Any],
-    ) -> bool:
+        return_rowcount: bool = False,
+    ) -> bool | int:
         result = await self.session.execute(
             update(model)
             .where(*conditions, model.deleted_at.is_(None))
             .values(deleted_at=func.now())
         )
         await self.session.flush()
-        return bool(getattr(result, "rowcount", 0) > 0)
+        rowcount = int(getattr(result, "rowcount", 0))
+        if return_rowcount:
+            return rowcount
+        return bool(rowcount > 0)
 
     async def _delete(
         self, model: type[ModelType], *conditions: ColumnExpressionArgument[Any]
