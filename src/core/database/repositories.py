@@ -18,7 +18,11 @@ from src.domains.promotions.repository import (
     PromotionPacketsRepository,
 )
 from src.domains.reports.repository import ReportReasonsRepository, ReportsRepository
-from src.domains.users.repository import ModeratorsRepository, UsersRepository, NotificationTokensRepository
+from src.domains.users.repository import (
+    ModeratorsRepository,
+    UsersRepository,
+    NotificationTokensRepository,
+)
 
 
 @dataclass(slots=True)

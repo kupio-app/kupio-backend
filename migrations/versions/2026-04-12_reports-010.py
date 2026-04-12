@@ -1,7 +1,7 @@
 """reports
 
-Revision ID: 009
-Revises: 008
+Revision ID: 010
+Revises: 009
 Create Date: 2026-04-12 00:07:30.720305
 
 """
@@ -14,8 +14,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = "009"
-down_revision: Union[str, Sequence[str], None] = "008"
+revision: str = "010"
+down_revision: Union[str, Sequence[str], None] = "009"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
