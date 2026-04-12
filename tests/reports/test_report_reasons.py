@@ -275,6 +275,26 @@ async def test_update_report_reason_changes_display_order_and_is_active(
     assert body["is_active"] is False
 
 
+async def test_update_report_reason_rejects_explicit_null(client, session_factory):
+    token = await _register(client, email="mod5null@example.com", username="mod5null")
+    await _make_moderator(session_factory, username="mod5null")
+    reason = await _create_reason(
+        session_factory,
+        slug="fraud_null",
+        title="Fraud",
+        display_order=4,
+        is_active=True,
+    )
+
+    resp = await client.put(
+        f"/api/reports/reasons/{reason.id}",
+        headers=_auth_header(token),
+        json={"is_active": None},
+    )
+
+    assert resp.status_code == 422
+
+
 async def test_update_report_reason_rejects_deactivating_other(client, session_factory):
     token = await _register(client, email="mod6@example.com", username="mod6")
     await _make_moderator(session_factory, username="mod6")

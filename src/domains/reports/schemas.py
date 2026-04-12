@@ -38,6 +38,13 @@ class ReportReasonUpdateRequest(BaseModel):
     display_order: int | None = Field(default=None, ge=0)
     is_active: bool | None = None
 
+    @field_validator("display_order", "is_active")
+    @classmethod
+    def reject_explicit_null(cls, v):
+        if v is None:
+            raise ValueError("Field may be omitted, but cannot be null")
+        return v
+
 
 class ReportReasonResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

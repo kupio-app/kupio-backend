@@ -87,7 +87,7 @@ class ReportsService:
         reason: ReportReason,
         reason_data: ReportReasonUpdateRequest,
     ) -> ReportReason:
-        updates = reason_data.model_dump(exclude_none=True)
+        updates = reason_data.model_dump(exclude_unset=True)
         if not updates:
             return reason
 
