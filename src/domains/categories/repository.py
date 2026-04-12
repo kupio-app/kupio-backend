@@ -12,7 +12,7 @@ class CategoriesRepository(BaseRepository):
     async def create(
         self, name: str, parent_id: int | None, icon: str | None, depth: int
     ):
-        return self._add(
+        return await self._add(
             Category,
             name=name,
             parent_id=parent_id,
