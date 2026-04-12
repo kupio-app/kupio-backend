@@ -88,7 +88,9 @@ class ChatWebSocketSession:
         except asyncio.TimeoutError:
             await self._close_with_error(WsErrorMessage(code="auth_timeout"), 4001)
             return None
-        except json.JSONDecodeError, WebSocketDisconnect:
+        except WebSocketDisconnect:
+            return None
+        except json.JSONDecodeError:
             await self._close_with_error(WsErrorMessage(code="invalid_token"), 4001)
             return None
 
