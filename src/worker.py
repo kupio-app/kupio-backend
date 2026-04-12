@@ -43,7 +43,7 @@ async def send_fcm_push(
         if not tokens:
             return
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         dead_token_ids: list[UUID] = []
 
         for device_token in tokens:
