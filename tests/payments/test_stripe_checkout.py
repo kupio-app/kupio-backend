@@ -1,7 +1,5 @@
-import pytest_asyncio
 from sqlalchemy import select
 
-from src.domains.payments.dependencies import get_stripe_client
 from src.domains.payments.enums import PaymentSessionStatus, TransactionType
 from src.domains.payments.models import BalanceTransaction, PaymentSession
 from src.domains.users.models import User
@@ -23,31 +21,6 @@ async def _register(client, *, email: str, username: str) -> str:
     )
     assert resp.status_code == 201
     return resp.json()["access_token"]
-
-
-class _FakeCheckoutSessions:
-    async def create_async(self, *args, **kwargs):
-        return type(
-            "PaymentSession",
-            (),
-            {"id": "cs_test_123", "url": "https://checkout.example/session"},
-        )()
-
-
-class _FakeStripeClient:
-    def __init__(self, api_key: str):
-        self.v1 = type(
-            "V1",
-            (),
-            {"checkout": type("Checkout", (), {"sessions": _FakeCheckoutSessions()})()},
-        )()
-
-
-@pytest_asyncio.fixture(autouse=True)
-async def override_stripe_client(app):
-    app.dependency_overrides[get_stripe_client] = lambda: _FakeStripeClient("sk_test")
-    yield
-    app.dependency_overrides.pop(get_stripe_client, None)
 
 
 async def test_create_checkout_session_returns_checkout_url(client, session_factory):
@@ -135,7 +108,7 @@ async def test_checkout_webhook_expired_updates_status(
     )
 
     monkeypatch.setattr(
-        "src.domains.payments.service.stripe.Webhook.construct_event",
+        "src.domains.payments.service.StripeWebhook.construct_event",
         lambda payload, sig_header, secret: {
             "type": "checkout.session.expired",
             "data": {"object": {"id": "cs_test_123"}},
