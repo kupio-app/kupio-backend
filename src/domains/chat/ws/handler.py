@@ -162,6 +162,7 @@ class ChatWebSocketSession:
         finally:
             presence_task.cancel()
             forward_task.cancel()
+            await asyncio.gather(presence_task, forward_task, return_exceptions=True)
             await pubsub.unsubscribe(channel)
             await pubsub.aclose()
             await self.chat_redis.delete_presence(self.conversation_id, self._user_id)
