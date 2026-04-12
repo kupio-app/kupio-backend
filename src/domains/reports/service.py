@@ -37,11 +37,9 @@ from src.domains.reports.schemas import (
 )
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
+from .consts import OTHER_REPORT_REASON_SLUG, ADDITIONAL_INFO_PREVIEW_LENGTH
 from .enums import ReportDecisionAction, ReportSeenFilter, ReportStatus
 from .repository import ReportReasonsRepository, ReportsRepository
-
-OTHER_REPORT_REASON_SLUG = "other"
-ADDITIONAL_INFO_PREVIEW_LENGTH = 120
 
 
 class ReportsService:
