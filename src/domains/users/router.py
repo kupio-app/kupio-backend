@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Query
 
 from src.core.dependencies import get_current_user
 from src.core.utils.pagination import PaginationParams
@@ -67,7 +67,7 @@ async def get_my_promotions(
 
 @router.get("/me/listings", response_model=ListListingsResponse)
 async def get_my_listings(
-    listing_status: ListingStatus | None = None,
+    listing_status: ListingStatus = Query(alias="status"),
     pagination: PaginationParams = Depends(),
     current_user: User = Depends(get_current_user),
     service: ListingsService = Depends(get_listings_service),
