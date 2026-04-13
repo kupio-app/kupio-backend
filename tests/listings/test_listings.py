@@ -2,12 +2,14 @@ import itertools
 import uuid
 
 from sqlalchemy import inspect, select, update, func
+from sqlalchemy.dialects import postgresql
 
 from src.core.database.repositories import Repositories
 from src.domains.categories.models import Category
 from src.domains.chat.models import Conversation
-from src.domains.listings.models import ListingView
+from src.domains.listings.models import Listing, ListingView
 from src.domains.listings.enums import CurrencyEnum, ListingStatus
+from src.domains.listings.repository import ListingsRepository
 from src.domains.promotions.enums import PromotionType
 from src.domains.promotions.models import PromotionPacket
 from src.domains.users.models import User
@@ -47,23 +49,36 @@ async def _create_category(session_factory, *, name: str) -> Category:
         return category
 
 
-def _listing_payload(*, category_id: int) -> dict:
-    return {
-        "title": "Gaming laptop 2026",
-        "description": "Powerful gaming laptop with RTX graphics card, clean condition, and full accessories included.",
-        "price": 2200,
-        "is_free": False,
-        "is_tradable": False,
+def _listing_payload(
+    *,
+    category_id: int,
+    title: str = "Gaming laptop 2026",
+    description: str = "Powerful gaming laptop with RTX graphics card, clean condition, and full accessories included.",
+    price: int = 2200,
+    is_free: bool = False,
+    is_tradable: bool = False,
+    custom_filters: dict | None = None,
+) -> dict:
+    payload = {
+        "title": title,
+        "description": description,
+        "price": price,
+        "is_free": is_free,
+        "is_tradable": is_tradable,
         "currency": "usd",
         "category_id": category_id,
     }
+    if custom_filters is not None:
+        payload["custom_filters"] = custom_filters
+
+    return payload
 
 
-async def _create_listing(client, *, token: str, category_id: int) -> dict:
+async def _create_listing(client, *, token: str, category_id: int, **kwargs) -> dict:
     resp = await client.post(
         "/api/listings",
         headers=_auth_header(token),
-        json=_listing_payload(category_id=category_id),
+        json=_listing_payload(category_id=category_id, **kwargs),
     )
     assert resp.status_code == 200
     return resp.json()
@@ -210,7 +225,7 @@ async def test_list_listings_excludes_inactive(client, session_factory):
     resp = await client.get("/api/listings")
 
     assert resp.status_code == 200
-    assert not any(l["id"] == listing["id"] for l in resp.json()["listings"])
+    assert not any(item["id"] == listing["id"] for item in resp.json()["listings"])
 
 
 async def test_list_listings_includes_active(client, session_factory):
@@ -227,7 +242,472 @@ async def test_list_listings_includes_active(client, session_factory):
     resp = await client.get("/api/listings")
 
     assert resp.status_code == 200
-    assert any(l["id"] == listing["id"] for l in resp.json()["listings"])
+    assert any(item["id"] == listing["id"] for item in resp.json()["listings"])
+
+
+async def test_list_listings_searches_by_title_substring(client, session_factory):
+    category = await _create_category(session_factory, name="Phones")
+    token = await _register(client, email="search-title@example.com", username="stitle")
+    matching = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 15 Pro",
+    )
+    non_matching = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Samsung Galaxy S25 Ultra",
+    )
+    await _activate_listing(client, token=token, listing_id=matching["id"])
+    await _activate_listing(client, token=token, listing_id=non_matching["id"])
+
+    resp = await client.get("/api/listings?q=iPhone")
+
+    assert resp.status_code == 200
+    returned_ids = {listing["id"] for listing in resp.json()["listings"]}
+    assert matching["id"] in returned_ids
+    assert non_matching["id"] not in returned_ids
+
+
+async def test_list_listings_searches_by_description_substring(client, session_factory):
+    category = await _create_category(session_factory, name="Phones")
+    token = await _register(client, email="search-desc@example.com", username="sdesc")
+    matching = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Flagship phone bundle",
+        description="Excellent flagship bundle with Apple iPhone accessories, charger, and protective case included.",
+    )
+    non_matching = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Office monitor 4K",
+        description="Large 4K monitor for office work with adjustable stand, sharp colors, and long warranty period.",
+    )
+    await _activate_listing(client, token=token, listing_id=matching["id"])
+    await _activate_listing(client, token=token, listing_id=non_matching["id"])
+
+    resp = await client.get("/api/listings?q=iPhone")
+
+    assert resp.status_code == 200
+    returned_ids = {listing["id"] for listing in resp.json()["listings"]}
+    assert matching["id"] in returned_ids
+    assert non_matching["id"] not in returned_ids
+
+
+async def test_list_listings_search_returns_all_matching_results(
+    client, session_factory
+):
+    category = await _create_category(session_factory, name="Phones")
+    token = await _register(client, email="search-multi@example.com", username="smulti")
+    listings = [
+        await _create_listing(
+            client,
+            token=token,
+            category_id=category.id,
+            title="Apple iPhone 15 Pro",
+        ),
+        await _create_listing(
+            client,
+            token=token,
+            category_id=category.id,
+            title="Apple iPhone 16 Pro",
+        ),
+        await _create_listing(
+            client,
+            token=token,
+            category_id=category.id,
+            title="Apple iPhone 17 Pro",
+        ),
+    ]
+    for listing in listings:
+        await _activate_listing(client, token=token, listing_id=listing["id"])
+
+    resp = await client.get("/api/listings?q=iPhone")
+
+    assert resp.status_code == 200
+    returned_ids = {listing["id"] for listing in resp.json()["listings"]}
+    assert returned_ids == {listing["id"] for listing in listings}
+
+
+async def test_list_listings_search_combines_with_category_filter(
+    client, session_factory
+):
+    phones = await _create_category(session_factory, name="Phones")
+    laptops = await _create_category(session_factory, name="Laptops")
+    token = await _register(
+        client, email="search-category@example.com", username="scategory"
+    )
+    phone_listing = await _create_listing(
+        client,
+        token=token,
+        category_id=phones.id,
+        title="Apple iPhone 16 Pro",
+    )
+    laptop_listing = await _create_listing(
+        client,
+        token=token,
+        category_id=laptops.id,
+        title="iPhone listed in wrong category",
+    )
+    await _activate_listing(client, token=token, listing_id=phone_listing["id"])
+    await _activate_listing(client, token=token, listing_id=laptop_listing["id"])
+
+    resp = await client.get(f"/api/listings?q=iPhone&category_id={phones.id}")
+
+    assert resp.status_code == 200
+    returned_ids = {listing["id"] for listing in resp.json()["listings"]}
+    assert returned_ids == {phone_listing["id"]}
+
+
+async def test_list_listings_search_combines_with_custom_filters(
+    client, session_factory
+):
+    conditions = ListingsRepository._search_conditions(
+        q="iPhone",
+        custom_filters={"ram": "16 GB"},
+    )
+    stmt = select(Listing).where(*conditions)
+    compiled = stmt.compile(
+        dialect=postgresql.dialect(),
+    )
+    sql = str(compiled)
+
+    assert "ILIKE" in sql
+    assert "@>" in sql
+    assert "%(title_1)s" in sql
+    assert "%(param_1)s" in sql
+    assert compiled.params["title_1"] == "%iPhone%"
+    assert compiled.params["description_1"] == "%iPhone%"
+    assert compiled.params["param_1"] == {"ram": "16 GB"}
+
+
+async def test_list_listings_filters_by_min_price(client, session_factory):
+    category = await _create_category(session_factory, name="Phones")
+    token = await _register(
+        client, email="search-min-price@example.com", username="sminprice"
+    )
+    cheaper = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 14 Mini",
+        price=150,
+    )
+    pricier = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 16 Pro",
+        price=950,
+    )
+    await _activate_listing(client, token=token, listing_id=cheaper["id"])
+    await _activate_listing(client, token=token, listing_id=pricier["id"])
+
+    resp = await client.get("/api/listings?q=iPhone&min_price=500")
+
+    assert resp.status_code == 200
+    returned_ids = {listing["id"] for listing in resp.json()["listings"]}
+    assert returned_ids == {pricier["id"]}
+
+
+async def test_list_listings_filters_by_max_price(client, session_factory):
+    category = await _create_category(session_factory, name="Phones")
+    token = await _register(
+        client, email="search-max-price@example.com", username="smaxprice"
+    )
+    free_listing = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 13 Free",
+        price=999,
+        is_free=True,
+    )
+    cheaper = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 14",
+        price=80,
+    )
+    pricier = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 16 Pro",
+        price=900,
+    )
+    await _activate_listing(client, token=token, listing_id=free_listing["id"])
+    await _activate_listing(client, token=token, listing_id=cheaper["id"])
+    await _activate_listing(client, token=token, listing_id=pricier["id"])
+
+    resp = await client.get("/api/listings?q=iPhone&max_price=100")
+
+    assert resp.status_code == 200
+    returned_ids = {listing["id"] for listing in resp.json()["listings"]}
+    assert returned_ids == {free_listing["id"], cheaper["id"]}
+
+
+async def test_list_listings_filters_by_price_range(client, session_factory):
+    category = await _create_category(session_factory, name="Phones")
+    token = await _register(client, email="search-range@example.com", username="srange")
+    too_low = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 13",
+        price=90,
+    )
+    in_range = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 15 Pro",
+        price=350,
+    )
+    too_high = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 17 Pro",
+        price=1200,
+    )
+    await _activate_listing(client, token=token, listing_id=too_low["id"])
+    await _activate_listing(client, token=token, listing_id=in_range["id"])
+    await _activate_listing(client, token=token, listing_id=too_high["id"])
+
+    resp = await client.get("/api/listings?q=iPhone&min_price=100&max_price=500")
+
+    assert resp.status_code == 200
+    returned_ids = {listing["id"] for listing in resp.json()["listings"]}
+    assert returned_ids == {in_range["id"]}
+
+
+async def test_list_listings_treats_free_listings_as_zero_price(
+    client, session_factory
+):
+    category = await _create_category(session_factory, name="Phones")
+    token = await _register(client, email="search-free@example.com", username="sfree")
+    free_listing = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone Free Offer",
+        price=999,
+        is_free=True,
+    )
+    await _activate_listing(client, token=token, listing_id=free_listing["id"])
+
+    resp = await client.get("/api/listings?q=iPhone&max_price=0")
+
+    assert resp.status_code == 200
+    returned_ids = {listing["id"] for listing in resp.json()["listings"]}
+    assert returned_ids == {free_listing["id"]}
+
+
+async def test_list_listings_excludes_free_listings_when_min_price_is_positive(
+    client, session_factory
+):
+    category = await _create_category(session_factory, name="Phones")
+    token = await _register(
+        client, email="search-free-min@example.com", username="sfreemin"
+    )
+    free_listing = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone Giveaway",
+        price=500,
+        is_free=True,
+    )
+    await _activate_listing(client, token=token, listing_id=free_listing["id"])
+
+    resp = await client.get("/api/listings?q=iPhone&min_price=1")
+
+    assert resp.status_code == 200
+    assert resp.json()["listings"] == []
+
+
+async def test_list_listings_filters_tradable_by_stored_price(client, session_factory):
+    category = await _create_category(session_factory, name="Phones")
+    token = await _register(
+        client, email="search-tradable@example.com", username="stradable"
+    )
+    matching = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 16 Trade",
+        price=450,
+        is_tradable=True,
+    )
+    non_matching = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 15 Trade",
+        price=200,
+        is_tradable=True,
+    )
+    await _activate_listing(client, token=token, listing_id=matching["id"])
+    await _activate_listing(client, token=token, listing_id=non_matching["id"])
+
+    resp = await client.get("/api/listings?q=iPhone&min_price=300&max_price=500")
+
+    assert resp.status_code == 200
+    returned_ids = {listing["id"] for listing in resp.json()["listings"]}
+    assert returned_ids == {matching["id"]}
+
+
+async def test_list_listings_filters_by_is_free(client, session_factory):
+    category = await _create_category(session_factory, name="Phones")
+    token = await _register(
+        client, email="search-is-free@example.com", username="sisfree"
+    )
+    free_listing = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 15 Free",
+        is_free=True,
+        price=700,
+    )
+    priced_listing = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 16 Pro",
+    )
+    await _activate_listing(client, token=token, listing_id=free_listing["id"])
+    await _activate_listing(client, token=token, listing_id=priced_listing["id"])
+
+    resp = await client.get("/api/listings?q=iPhone&is_free=true")
+
+    assert resp.status_code == 200
+    returned_ids = {listing["id"] for listing in resp.json()["listings"]}
+    assert returned_ids == {free_listing["id"]}
+
+
+async def test_list_listings_filters_by_is_tradable(client, session_factory):
+    category = await _create_category(session_factory, name="Phones")
+    token = await _register(
+        client, email="search-is-tradable@example.com", username="sistradable"
+    )
+    tradable_listing = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 15 Swap",
+        is_tradable=True,
+    )
+    non_tradable_listing = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 16 Pro",
+    )
+    await _activate_listing(client, token=token, listing_id=tradable_listing["id"])
+    await _activate_listing(client, token=token, listing_id=non_tradable_listing["id"])
+
+    resp = await client.get("/api/listings?q=iPhone&is_tradable=true")
+
+    assert resp.status_code == 200
+    returned_ids = {listing["id"] for listing in resp.json()["listings"]}
+    assert returned_ids == {tradable_listing["id"]}
+
+
+async def test_list_listings_filters_by_is_free_false(client, session_factory):
+    category = await _create_category(session_factory, name="Phones")
+    token = await _register(
+        client, email="search-not-free@example.com", username="snotfree"
+    )
+    free_listing = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 15 Free",
+        is_free=True,
+        price=400,
+    )
+    priced_listing = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone 16 Pro",
+    )
+    await _activate_listing(client, token=token, listing_id=free_listing["id"])
+    await _activate_listing(client, token=token, listing_id=priced_listing["id"])
+
+    resp = await client.get("/api/listings?q=iPhone&is_free=false")
+
+    assert resp.status_code == 200
+    returned_ids = {listing["id"] for listing in resp.json()["listings"]}
+    assert returned_ids == {priced_listing["id"]}
+
+
+async def test_list_listings_supports_combined_boolean_filters(client, session_factory):
+    category = await _create_category(session_factory, name="Phones")
+    token = await _register(client, email="search-combo@example.com", username="scombo")
+    matching = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone Combo",
+        is_free=True,
+        is_tradable=True,
+        price=500,
+    )
+    free_only = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone Free",
+        is_free=True,
+        is_tradable=False,
+        price=500,
+    )
+    tradable_only = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Apple iPhone Trade",
+        is_free=False,
+        is_tradable=True,
+        price=500,
+    )
+    await _activate_listing(client, token=token, listing_id=matching["id"])
+    await _activate_listing(client, token=token, listing_id=free_only["id"])
+    await _activate_listing(client, token=token, listing_id=tradable_only["id"])
+
+    resp = await client.get("/api/listings?q=iPhone&is_free=true&is_tradable=true")
+
+    assert resp.status_code == 200
+    returned_ids = {listing["id"] for listing in resp.json()["listings"]}
+    assert returned_ids == {matching["id"]}
+
+
+async def test_list_listings_rejects_invalid_price_range(client):
+    resp = await client.get("/api/listings?min_price=200&max_price=100")
+
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "min_price must be less than or equal to max_price"
+
+
+async def test_list_listings_ignores_blank_query(client, session_factory):
+    category = await _create_category(session_factory, name="Phones")
+    token = await _register(client, email="search-blank@example.com", username="sblank")
+    listing = await _create_listing(client, token=token, category_id=category.id)
+    await _activate_listing(client, token=token, listing_id=listing["id"])
+
+    resp = await client.get("/api/listings?q=%20%20%20")
+
+    assert resp.status_code == 200
+    assert any(item["id"] == listing["id"] for item in resp.json()["listings"])
 
 
 # ── GET /api/listings/{id} ────────────────────────────────────────────────────
@@ -463,7 +943,7 @@ async def test_get_my_listings_returns_all_statuses(client, session_factory):
     resp = await client.get("/api/users/me/listings", headers=_auth_header(token))
 
     assert resp.status_code == 200
-    assert any(l["id"] == listing["id"] for l in resp.json()["listings"])
+    assert any(item["id"] == listing["id"] for item in resp.json()["listings"])
 
 
 async def test_get_my_listings_filter_by_status(client, session_factory):
@@ -477,13 +957,13 @@ async def test_get_my_listings_filter_by_status(client, session_factory):
         "/api/users/me/listings?status=active", headers=headers
     )
     assert active_resp.status_code == 200
-    assert not any(l["id"] == listing_id for l in active_resp.json()["listings"])
+    assert not any(item["id"] == listing_id for item in active_resp.json()["listings"])
 
     inactive_resp = await client.get(
         "/api/users/me/listings?status=inactive", headers=headers
     )
     assert inactive_resp.status_code == 200
-    assert any(l["id"] == listing_id for l in inactive_resp.json()["listings"])
+    assert any(item["id"] == listing_id for item in inactive_resp.json()["listings"])
 
 
 async def test_get_my_listings_requires_auth(client):
@@ -510,9 +990,7 @@ async def test_get_my_stats_returns_dashboard_totals(client, session_factory):
     active_listing = await _create_listing(
         client, token=seller_token, category_id=category.id
     )
-    inactive_listing = await _create_listing(
-        client, token=seller_token, category_id=category.id
-    )
+    await _create_listing(client, token=seller_token, category_id=category.id)
 
     await _activate_listing(
         client, token=seller_token, listing_id=promoted_listing["id"]
@@ -674,7 +1152,7 @@ async def test_get_user_listings_returns_only_active(client, session_factory):
     resp = await client.get("/api/users/u11/listings")
 
     assert resp.status_code == 200
-    assert any(l["id"] == listing["id"] for l in resp.json()["listings"])
+    assert any(item["id"] == listing["id"] for item in resp.json()["listings"])
 
 
 async def test_get_user_listings_hides_inactive(client, session_factory):
@@ -685,7 +1163,7 @@ async def test_get_user_listings_hides_inactive(client, session_factory):
     resp = await client.get("/api/users/u12/listings")
 
     assert resp.status_code == 200
-    assert not any(l["id"] == listing["id"] for l in resp.json()["listings"])
+    assert not any(item["id"] == listing["id"] for item in resp.json()["listings"])
 
 
 async def test_get_user_listings_unknown_user_returns_404(client):
