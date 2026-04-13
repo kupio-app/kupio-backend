@@ -9,8 +9,14 @@ from src.domains.users.models import User
 from .enums import ListingStatus
 from .exceptions import ListingNotFoundError
 from .models import Listing
-from .repository import ListingsRepository
-from .schemas import ListListingsResponse, ListingRequest, ListingResponse
+from .repository import ListingsRepository, OwnerDashboardStats
+from .schemas import (
+    ListListingsResponse,
+    ListOwnerListingsResponse,
+    ListingRequest,
+    ListingResponse,
+    OwnerListingResponse,
+)
 
 
 class ListingsService:
@@ -119,10 +125,71 @@ class ListingsService:
 
         return listing
 
-    async def get_listing_for_response(self, listing_id: UUID) -> Listing:
+    async def list_owned_listings(
+        self,
+        user_id: UUID,
+        *,
+        status: ListingStatus | None = None,
+        limit: int = 20,
+        cursor: str | None = None,
+    ) -> ListOwnerListingsResponse:
+        cursor_created_at, cursor_id = decode_cursor(cursor) if cursor else (None, None)
+        listings = await self.listings_repo.search_all_with_owner_stats(
+            user_id=user_id,
+            status=status,
+            limit=limit,
+            cursor_created_at=cursor_created_at,
+            cursor_id=cursor_id,
+        )
+        next_cursor = (
+            encode_cursor(listings[-1].listing.created_at, listings[-1].listing.id)
+            if len(listings) == limit
+            else None
+        )
+
+        return ListOwnerListingsResponse(
+            listings=[OwnerListingResponse.build_from(listing) for listing in listings],
+            next_cursor=next_cursor,
+        )
+
+    async def get_owner_dashboard_stats(self, user_id: UUID) -> OwnerDashboardStats:
+        return await self.listings_repo.get_owner_dashboard_stats(user_id)
+
+    async def get_listing_for_response(
+        self,
+        listing_id: UUID,
+        *,
+        current_user: User | None = None,
+        count_seen: bool = False,
+    ) -> Listing:
         if (
             listing := await self.listings_repo.get_for_response_by_id(listing_id)
         ) is None:
             raise ListingNotFoundError()
 
+        if not self._should_count_seen(
+            listing=listing,
+            current_user=current_user,
+            count_seen=count_seen,
+        ):
+            return listing
+
+        async with self.uow:
+            await self.repos.listing_views.create(
+                listing_id=listing.id,
+                viewer_user_id=current_user.id if current_user is not None else None,
+            )
+
         return listing
+
+    @staticmethod
+    def _should_count_seen(
+        *,
+        listing: Listing,
+        current_user: User | None,
+        count_seen: bool,
+    ) -> bool:
+        if not count_seen or listing.status != ListingStatus.ACTIVE:
+            return False
+
+        return current_user is None or current_user.id != listing.user_id

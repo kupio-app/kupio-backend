@@ -4,7 +4,7 @@ from src.core.dependencies import get_current_user
 from src.core.utils.pagination import PaginationParams
 from src.domains.listings.dependencies import get_listings_service
 from src.domains.listings.enums import ListingStatus
-from src.domains.listings.schemas import ListListingsResponse
+from src.domains.listings.schemas import ListListingsResponse, ListOwnerListingsResponse
 from src.domains.listings.service import ListingsService
 from src.domains.promotions.dependencies import get_promotions_service
 from src.domains.promotions.schemas import ListPromotionsResponse
@@ -21,6 +21,7 @@ from .schemas import (
     RegisterNotificationTokenRequest,
     SetUsernameRequest,
     UpdateUserProfile,
+    UserListingStatsResponse,
     UserPrivate,
     UserPublic,
 )
@@ -55,6 +56,14 @@ async def me(
     return await service.get_current_user_for_response(current_user.id)
 
 
+@router.get("/me/stats", response_model=UserListingStatsResponse)
+async def get_my_stats(
+    current_user: User = Depends(get_current_user),
+    service: ListingsService = Depends(get_listings_service),
+):
+    return await service.get_owner_dashboard_stats(current_user.id)
+
+
 @router.get("/me/promotions", response_model=ListPromotionsResponse)
 async def get_my_promotions(
     pagination: PaginationParams = Depends(),
@@ -68,14 +77,14 @@ async def get_my_promotions(
     )
 
 
-@router.get("/me/listings", response_model=ListListingsResponse)
+@router.get("/me/listings", response_model=ListOwnerListingsResponse)
 async def get_my_listings(
     listing_status: ListingStatus | None = Query(None, alias="status"),
     pagination: PaginationParams = Depends(),
     current_user: User = Depends(get_current_user),
     service: ListingsService = Depends(get_listings_service),
 ):
-    return await service.list_listings(
+    return await service.list_owned_listings(
         current_user.id,
         status=listing_status,
         limit=pagination.limit,

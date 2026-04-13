@@ -74,3 +74,11 @@ class NotificationTokenResponse(BaseModel):
     id: uuid.UUID
     platform: DevicePlatform
     last_seen_at: datetime.datetime
+
+
+class UserListingStatsResponse(BaseModel):
+    active_count: int
+    inactive_count: int
+    promoted_count: int
+    chats_count: int
+    favourites_count: int

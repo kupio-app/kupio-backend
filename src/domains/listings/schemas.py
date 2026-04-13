@@ -1,5 +1,5 @@
 import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -7,6 +7,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from src.domains.categories.schemas import CategorySlim
 from src.domains.images.schemas import ListingImageResponse
 from src.domains.listings.enums import CurrencyEnum, ListingStatus
+
+if TYPE_CHECKING:
+    from .repository import OwnerListingStats
 
 
 class ListingResponse(BaseModel):
@@ -28,6 +31,33 @@ class ListingResponse(BaseModel):
 
 class ListListingsResponse(BaseModel):
     listings: list[ListingResponse]
+    next_cursor: str | None
+
+
+class OwnerListingResponse(ListingResponse):
+    seen_count: int
+    favourites_count: int
+    chats_count: int
+    is_promoted: bool
+    promotion_expires_at: datetime.datetime | None
+
+    @classmethod
+    def build_from(cls, listing_stats: "OwnerListingStats") -> "OwnerListingResponse":
+        listing_data = ListingResponse.model_validate(
+            listing_stats.listing
+        ).model_dump()
+        return cls(
+            **listing_data,
+            seen_count=listing_stats.seen_count,
+            favourites_count=listing_stats.favourites_count,
+            chats_count=listing_stats.chats_count,
+            is_promoted=listing_stats.is_promoted,
+            promotion_expires_at=listing_stats.promotion_expires_at,
+        )
+
+
+class ListOwnerListingsResponse(BaseModel):
+    listings: list[OwnerListingResponse]
     next_cursor: str | None
 
 
