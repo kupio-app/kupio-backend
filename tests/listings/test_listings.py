@@ -334,6 +334,46 @@ async def test_list_listings_search_returns_all_matching_results(
     assert returned_ids == {listing["id"] for listing in listings}
 
 
+async def test_list_listings_search_treats_wildcards_as_literal_text(
+    client, session_factory
+):
+    category = await _create_category(session_factory, name="Phones")
+    token = await _register(
+        client, email="search-wildcards@example.com", username="swildcards"
+    )
+    percent_listing = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Battery at 100% health",
+    )
+    underscore_listing = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Model iphone_case bundle",
+    )
+    wildcard_only = await _create_listing(
+        client,
+        token=token,
+        category_id=category.id,
+        title="Regular iPhone case bundle",
+    )
+    await _activate_listing(client, token=token, listing_id=percent_listing["id"])
+    await _activate_listing(client, token=token, listing_id=underscore_listing["id"])
+    await _activate_listing(client, token=token, listing_id=wildcard_only["id"])
+
+    percent_resp = await client.get("/api/listings?q=100%")
+    underscore_resp = await client.get("/api/listings?q=iphone_")
+
+    assert percent_resp.status_code == 200
+    assert underscore_resp.status_code == 200
+    percent_ids = {listing["id"] for listing in percent_resp.json()["listings"]}
+    underscore_ids = {listing["id"] for listing in underscore_resp.json()["listings"]}
+    assert percent_ids == {percent_listing["id"]}
+    assert underscore_ids == {underscore_listing["id"]}
+
+
 async def test_list_listings_search_combines_with_category_filter(
     client, session_factory
 ):

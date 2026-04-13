@@ -52,6 +52,10 @@ class ListingsRepository(BaseRepository):
         return case((Listing.is_free.is_(True), 0), else_=Listing.price)
 
     @staticmethod
+    def _escape_like_pattern(value: str) -> str:
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    @staticmethod
     def _search_conditions(
         *,
         user_id: UUID | None = None,
@@ -75,11 +79,11 @@ class ListingsRepository(BaseRepository):
             conditions.append(Listing.status == status)
 
         if q is not None:
-            pattern = f"%{q}%"
+            pattern = f"%{ListingsRepository._escape_like_pattern(q)}%"
             conditions.append(
                 or_(
-                    Listing.title.ilike(pattern),
-                    Listing.description.ilike(pattern),
+                    Listing.title.ilike(pattern, escape="\\"),
+                    Listing.description.ilike(pattern, escape="\\"),
                 )
             )
 
