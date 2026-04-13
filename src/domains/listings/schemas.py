@@ -62,7 +62,7 @@ class ListOwnerListingsResponse(BaseModel):
 
 
 class ListingRequest(BaseModel):
-    title: str = Field(min_length=10, max_length=255)
+    title: str = Field(min_length=8, max_length=255)
     description: str = Field(min_length=50, max_length=5000)
     price: int = Field(ge=0, lt=10_000_000)
     is_free: bool = False
