@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, and_, or_, cast, ColumnElement, func
+from sqlalchemy import select, and_, or_, cast, case, ColumnElement, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import selectinload
 
@@ -13,7 +13,7 @@ from src.domains.favourites.models import ListingFavourite
 from src.domains.images.models import ListingImage
 from src.domains.promotions.enums import PromotionStatus
 from src.domains.promotions.models import ListingPromotion
-from .enums import ListingStatus, CurrencyEnum
+from .enums import CurrencyEnum, ListingStatus
 from .models import Listing, ListingView
 
 
@@ -48,11 +48,24 @@ class ListingsRepository(BaseRepository):
         )
 
     @staticmethod
+    def _effective_price_expression():
+        return case((Listing.is_free.is_(True), 0), else_=Listing.price)
+
+    @staticmethod
+    def _escape_like_pattern(value: str) -> str:
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    @staticmethod
     def _search_conditions(
         *,
         user_id: UUID | None = None,
         status: ListingStatus | None = None,
+        q: str | None = None,
         category_id: int | None = None,
+        min_price: int | None = None,
+        max_price: int | None = None,
+        is_free: bool | None = None,
+        is_tradable: bool | None = None,
         custom_filters: dict | None = None,
         cursor_created_at: datetime.datetime | None = None,
         cursor_id: UUID | None = None,
@@ -65,8 +78,30 @@ class ListingsRepository(BaseRepository):
         if status is not None:
             conditions.append(Listing.status == status)
 
+        if q is not None:
+            pattern = f"%{ListingsRepository._escape_like_pattern(q)}%"
+            conditions.append(
+                or_(
+                    Listing.title.ilike(pattern, escape="\\"),
+                    Listing.description.ilike(pattern, escape="\\"),
+                )
+            )
+
         if category_id is not None:
             conditions.append(Listing.category_id == category_id)
+
+        if is_free is not None:
+            conditions.append(Listing.is_free.is_(is_free))
+
+        if is_tradable is not None:
+            conditions.append(Listing.is_tradable.is_(is_tradable))
+
+        if min_price is not None or max_price is not None:
+            effective_price = ListingsRepository._effective_price_expression()
+            if min_price is not None:
+                conditions.append(effective_price >= min_price)
+            if max_price is not None:
+                conditions.append(effective_price <= max_price)
 
         if custom_filters:
             conditions.append(
@@ -138,7 +173,12 @@ class ListingsRepository(BaseRepository):
         self,
         user_id: UUID | None = None,
         status: ListingStatus | None = None,
+        q: str | None = None,
         category_id: int | None = None,
+        min_price: int | None = None,
+        max_price: int | None = None,
+        is_free: bool | None = None,
+        is_tradable: bool | None = None,
         custom_filters: dict | None = None,
         limit: int = 20,
         cursor_created_at: datetime.datetime | None = None,
@@ -147,7 +187,12 @@ class ListingsRepository(BaseRepository):
         conditions = self._search_conditions(
             user_id=user_id,
             status=status,
+            q=q,
             category_id=category_id,
+            min_price=min_price,
+            max_price=max_price,
+            is_free=is_free,
+            is_tradable=is_tradable,
             custom_filters=custom_filters,
             cursor_created_at=cursor_created_at,
             cursor_id=cursor_id,
