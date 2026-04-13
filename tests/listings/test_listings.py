@@ -416,14 +416,12 @@ async def test_list_listings_search_combines_with_custom_filters(
         dialect=postgresql.dialect(),
     )
     sql = str(compiled)
+    params = list(compiled.params.values())
 
     assert "ILIKE" in sql
     assert "@>" in sql
-    assert "%(title_1)s" in sql
-    assert "%(param_1)s" in sql
-    assert compiled.params["title_1"] == "%iPhone%"
-    assert compiled.params["description_1"] == "%iPhone%"
-    assert compiled.params["param_1"] == {"ram": "16 GB"}
+    assert params.count("%iPhone%") == 2
+    assert any(param == {"ram": "16 GB"} for param in params)
 
 
 async def test_list_listings_filters_by_min_price(client, session_factory):
