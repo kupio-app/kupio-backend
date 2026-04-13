@@ -9,7 +9,7 @@ from src.domains.users.models import User
 from .enums import ListingStatus
 from .exceptions import ListingNotFoundError
 from .models import Listing
-from .repository import ListingsRepository, OwnerListingStats, OwnerDashboardStats
+from .repository import ListingsRepository, OwnerDashboardStats
 from .schemas import (
     ListListingsResponse,
     ListOwnerListingsResponse,
@@ -148,9 +148,7 @@ class ListingsService:
         )
 
         return ListOwnerListingsResponse(
-            listings=[
-                self._build_owner_listing_response(listing) for listing in listings
-            ],
+            listings=[OwnerListingResponse.build_from(listing) for listing in listings],
             next_cursor=next_cursor,
         )
 
@@ -195,19 +193,3 @@ class ListingsService:
             return False
 
         return current_user is None or current_user.id != listing.user_id
-
-    @staticmethod
-    def _build_owner_listing_response(
-        listing_stats: OwnerListingStats,
-    ) -> OwnerListingResponse:
-        listing_data = ListingResponse.model_validate(
-            listing_stats.listing
-        ).model_dump()
-        return OwnerListingResponse(
-            **listing_data,
-            seen_count=listing_stats.seen_count,
-            favourites_count=listing_stats.favourites_count,
-            chats_count=listing_stats.chats_count,
-            is_promoted=listing_stats.is_promoted,
-            promotion_expires_at=listing_stats.promotion_expires_at,
-        )
