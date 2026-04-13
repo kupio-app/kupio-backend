@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from src.core.dependencies import get_current_user
+from src.core.dependencies import get_current_user, get_current_user_or_none
 from src.core.exceptions import UnprocessableEntityError
 from src.core.utils.pagination import PaginationParams
 from src.domains.reports.dependencies import get_reports_service
@@ -17,7 +17,6 @@ from src.domains.users.models import User
 from .dependencies import (
     get_listing_by_id,
     get_listings_service,
-    get_optional_listing_viewer,
     get_owned_listing_by_id,
 )
 from .enums import ListingStatus
@@ -64,7 +63,7 @@ async def get_listings(
 async def get_listing(
     listing_id: UUID,
     count_seen: bool = Query(default=False),
-    current_user: User | None = Depends(get_optional_listing_viewer),
+    current_user: User | None = Depends(get_current_user_or_none),
     service: ListingsService = Depends(get_listings_service),
 ):
     return await service.get_listing_for_response(
