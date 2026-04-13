@@ -20,6 +20,7 @@ from .dependencies import (
     get_owned_listing_by_id,
 )
 from .enums import ListingStatus
+from .exceptions import InvalidListingPriceRangeError
 from .models import Listing
 from .schemas import (
     ListingRequest,
@@ -35,12 +36,22 @@ router = APIRouter()
 @router.get("", response_model=ListListingsResponse)
 async def get_listings(
     pagination: PaginationParams = Depends(),
+    q: str | None = Query(default=None),
     category_id: int | None = Query(default=None),
+    min_price: int | None = Query(default=None, ge=0),
+    max_price: int | None = Query(default=None, ge=0),
+    is_free: bool | None = Query(default=None),
+    is_tradable: bool | None = Query(default=None),
     filters: str | None = Query(
         default=None, description='JSON object, {"ram":"16 GB"}'
     ),
     service: ListingsService = Depends(get_listings_service),
 ):
+    if min_price is not None and max_price is not None and min_price > max_price:
+        raise InvalidListingPriceRangeError()
+
+    q = q.strip() or None if q is not None else None
+
     custom_filters: dict | None = None
     if filters is not None:
         try:
@@ -52,7 +63,12 @@ async def get_listings(
 
     return await service.list_listings(
         status=ListingStatus.ACTIVE,
+        q=q,
         category_id=category_id,
+        min_price=min_price,
+        max_price=max_price,
+        is_free=is_free,
+        is_tradable=is_tradable,
         custom_filters=custom_filters,
         limit=pagination.limit,
         cursor=pagination.cursor,
