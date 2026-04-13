@@ -50,7 +50,7 @@ async def get_listings(
     if min_price is not None and max_price is not None and min_price > max_price:
         raise InvalidListingPriceRangeError()
 
-    q = q.strip() or None if q is not None else None
+    q = (q.strip() or None) if q is not None else None
 
     custom_filters: dict | None = None
     if filters is not None:
