@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import time
+
 import aiohttp
 
-from typing import NotRequired, TypedDict, Any
-from jose import JWTError, ExpiredSignatureError, jwt
+from typing import Any, NotRequired, TypedDict
+from jose import ExpiredSignatureError, JWTError, jwt
 
 from src.domains.auth.exceptions import InvalidGoogleTokenError
 
@@ -88,7 +89,11 @@ async def verify_google_id_token(
             token,
             key,
             algorithms=["RS256"],
-            options={"verify_aud": False, "verify_iss": False},
+            options={
+                "verify_aud": False,
+                "verify_iss": False,
+                "verify_at_hash": False,
+            },
         )
     except (ExpiredSignatureError, JWTError) as exc:
         raise InvalidGoogleTokenError() from exc

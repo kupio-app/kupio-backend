@@ -42,6 +42,47 @@ async def test_verify_google_id_token_uses_cached_jwk(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_verify_google_id_token_disables_at_hash_verification(monkeypatch):
+    cache = google_security._GoogleJwksCache()
+    monkeypatch.setattr(google_security, "_jwks_cache", cache)
+    monkeypatch.setattr(
+        google_security.jwt,
+        "get_unverified_header",
+        lambda token: {"kid": "kid-1", "alg": "RS256"},
+    )
+
+    def decode(*args, **kwargs):
+        assert kwargs["options"]["verify_at_hash"] is False
+        return {
+            "sub": "sub-1",
+            "email": "user@example.com",
+            "email_verified": True,
+            "aud": "client-1",
+            "iss": "https://accounts.google.com",
+            "at_hash": "ignored",
+        }
+
+    monkeypatch.setattr(google_security.jwt, "decode", decode)
+    monkeypatch.setattr(
+        google_security,
+        "_fetch_google_jwks",
+        AsyncMock(
+            return_value=(
+                {"kid-1": {"kid": "kid-1", "kty": "RSA", "n": "n", "e": "AQAB"}},
+                3600,
+            )
+        ),
+    )
+
+    claims = await google_security.verify_google_id_token(
+        "token-1",
+        client_ids=["client-1"],
+    )
+
+    assert claims["email"] == "user@example.com"
+
+
+@pytest.mark.asyncio
 async def test_verify_google_id_token_rejects_unknown_audience(monkeypatch):
     cache = google_security._GoogleJwksCache()
     monkeypatch.setattr(google_security, "_jwks_cache", cache)
