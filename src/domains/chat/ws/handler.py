@@ -118,6 +118,7 @@ class ChatWebSocketSession:
                 return False
 
             await self._touch_notification_tokens(repos, session, user_id)
+            await self._touch_conversation_last_read(repos, session, user_id)
             await self._send(WsAuthOkMessage(conversation_id=self.conversation_id))
             await self._replay_missed_messages(repos)
 
@@ -132,6 +133,12 @@ class ChatWebSocketSession:
             return False
 
         return True
+
+    async def _touch_conversation_last_read(
+        self, repos: Repositories, session: AsyncSession, user_id: UUID
+    ) -> None:
+        await repos.conversations.update_last_read_at(self.conversation_id, user_id)
+        await session.commit()
 
     async def _touch_notification_tokens(
         self, repos: Repositories, session: AsyncSession, user_id: UUID
