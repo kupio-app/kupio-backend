@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from sqlalchemy.exc import IntegrityError
 
 from src.core.database.repositories import Repositories
@@ -26,6 +28,13 @@ class UsersService:
 
     async def get_user(self, username: str) -> User:
         user = await self.users_repo.get_for_response_by_username(username)
+        if user is None:
+            raise UserNotFoundError()
+
+        return user
+
+    async def get_user_by_id(self, user_id: UUID) -> User:
+        user = await self.users_repo.get_by_id(user_id)
         if user is None:
             raise UserNotFoundError()
 
