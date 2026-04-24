@@ -1,7 +1,7 @@
 """unread messages read tracking
 
-Revision ID: 010
-Revises: 009
+Revision ID: 012
+Revises: 011
 Create Date: 2026-04-24
 
 """
@@ -12,8 +12,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = "011"
-down_revision: Union[str, Sequence[str], None] = "010"
+revision: str = "012"
+down_revision: Union[str, Sequence[str], None] = "011"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
