@@ -1,6 +1,7 @@
+import datetime
 import uuid
 
-from sqlalchemy import String, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import DateTime, String, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import Mapped as M, mapped_column as mc, relationship
 
 from src.core.database.base_model import Base, UUID
@@ -26,6 +27,8 @@ class Conversation(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
     last_message_preview: M[str | None] = mc(String(255), nullable=True)
+    buyer_last_read_at: M[datetime.datetime | None] = mc(DateTime(), nullable=True)
+    seller_last_read_at: M[datetime.datetime | None] = mc(DateTime(), nullable=True)
 
     messages: M[list["Message"]] = relationship(
         "Message", back_populates="conversation", lazy="noload"
