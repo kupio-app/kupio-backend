@@ -2,7 +2,7 @@ import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, and_, or_, ColumnElement
+from sqlalchemy import case, func, select, and_, or_, ColumnElement
 
 from src.core.database.base_repository import BaseRepository
 from src.domains.chat.models import Conversation, Message
@@ -38,6 +38,40 @@ class ConversationsRepository(BaseRepository):
             last_message_preview=preview[:255],  # DB column is varchar(255)
         )
 
+    async def update_last_read_at(self, conversation_id: UUID, user_id: UUID) -> None:
+        await self._update(
+            Conversation,
+            [Conversation.id == conversation_id, Conversation.buyer_id == user_id],
+            load_result=False,
+            buyer_last_read_at=func.now(),
+        )
+        await self._update(
+            Conversation,
+            [Conversation.id == conversation_id, Conversation.seller_id == user_id],
+            load_result=False,
+            seller_last_read_at=func.now(),
+        )
+
+    def _unread_subquery(self, user_id: UUID):
+        last_read_at = case(
+            (Conversation.buyer_id == user_id, Conversation.buyer_last_read_at),
+            else_=Conversation.seller_last_read_at,
+        )
+        return (
+            select(func.count())
+            .where(
+                Message.conversation_id == Conversation.id,
+                Message.deleted_at.is_(None),
+                Message.sender_id != user_id,
+                or_(
+                    last_read_at.is_(None),
+                    Message.created_at > last_read_at,
+                ),
+            )
+            .correlate(Conversation)
+            .scalar_subquery()
+        )
+
     async def list_as(
         self,
         *,
@@ -46,9 +80,11 @@ class ConversationsRepository(BaseRepository):
         limit: int,
         cursor_created_at: datetime.datetime | None = None,
         cursor_id: UUID | None = None,
-    ) -> list[Conversation]:
+    ) -> list[tuple[Conversation, int]]:
         if not any([seller_id, buyer_id]):
             raise ValueError("seller_id, buyer_id must be provided")
+
+        user_id = seller_id or buyer_id
 
         conditions: list[ColumnElement[Any]] = []
         if seller_id is not None:
@@ -67,12 +103,49 @@ class ConversationsRepository(BaseRepository):
                 )
             )
         stmt = (
-            select(Conversation)
+            select(Conversation, self._unread_subquery(user_id).label("unread_count"))
             .where(*conditions)
             .order_by(Conversation.created_at.desc(), Conversation.id.desc())
             .limit(limit)
         )
-        return await self._scalars_all(stmt)
+        return list((await self.session.execute(stmt)).all())
+
+    async def get_with_unread_count(
+        self, conversation_id: UUID, user_id: UUID
+    ) -> tuple[Conversation, int] | None:
+        stmt = select(
+            Conversation,
+            self._unread_subquery(user_id).label("unread_count"),
+        ).where(Conversation.id == conversation_id)
+        row = (await self.session.execute(stmt)).first()
+        if row is None:
+            return None
+        conv, unread_count = row
+        return conv, unread_count
+
+    async def get_total_unread_count(self, user_id: UUID) -> int:
+        last_read_at = case(
+            (Conversation.buyer_id == user_id, Conversation.buyer_last_read_at),
+            else_=Conversation.seller_last_read_at,
+        )
+        stmt = (
+            select(func.count())
+            .select_from(Message)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .where(
+                or_(
+                    Conversation.buyer_id == user_id,
+                    Conversation.seller_id == user_id,
+                ),
+                Message.deleted_at.is_(None),
+                Message.sender_id != user_id,
+                or_(
+                    last_read_at.is_(None),
+                    Message.created_at > last_read_at,
+                ),
+            )
+        )
+        return await self.session.scalar(stmt) or 0
 
 
 class MessagesRepository(BaseRepository):
