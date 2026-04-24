@@ -283,7 +283,8 @@ src/
     ├── images/             # Image upload and storage (S3)
     ├── favourites/         # User favourites
     ├── promotions/         # Promotion packets and listing promotions
-    └── payments/           # Stripe checkout, webhooks, balance transactions
+    ├── payments/           # Stripe checkout, webhooks, balance transactions
+    └── chat/               # Conversations, messages, WebSocket real-time layer
 ```
 
 Each domain follows the pattern: `model.py` → `repository.py` → `service.py` → `router.py`.
@@ -303,7 +304,29 @@ All routes are prefixed with `/api`:
 | `/api/listings/promotions` | Listing promotions |
 | `/api/promotions/packets` | Promotion packets |
 | `/api/payments` | Stripe checkout, balance transactions, webhooks |
+| `/api/chat` | Conversations, messages, unread counts, WebSocket |
 
 With `SERVER__DEBUG=true`, interactive docs are available at:
 - Swagger UI: `http://localhost:8080/api/docs`
 - ReDoc: `http://localhost:8080/api/redoc`
+
+## Chat
+
+The chat system uses REST for conversation and message management and WebSockets for real-time delivery.
+
+**Key REST endpoints:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/chat/conversations` | Start or retrieve a conversation for a listing |
+| `GET` | `/api/chat/conversations` | List conversations (role: `buyer` or `seller`) |
+| `GET` | `/api/chat/conversations/unread-count` | Total unread message count across all conversations |
+| `GET` | `/api/chat/conversations/{id}` | Get a single conversation with unread count |
+| `GET` | `/api/chat/conversations/{id}/messages` | Paginated message history (also marks as read) |
+| `POST` | `/api/chat/conversations/{id}/messages` | Send a message |
+| `DELETE` | `/api/chat/conversations/{id}/messages/{msg_id}` | Soft-delete a message |
+| `WS` | `/api/chat/conversations/{id}/ws` | Real-time WebSocket connection |
+
+Every `ConversationResponse` includes an `unread_count` field. Messages are marked as read when the user connects via WebSocket or fetches message history via REST; a `messages_read` event is broadcast to the conversation channel so the other participant can update their UI in real time.
+
+See [`docs/chat-websocket.md`](docs/chat-websocket.md) for the full WebSocket protocol reference.
