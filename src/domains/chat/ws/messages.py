@@ -21,3 +21,8 @@ class WsPongMessage(BaseModel):
 class WsTypingMessage(BaseModel):
     type: Literal["typing"] = "typing"
     user_id: UUID
+
+
+class WsMessagesReadMessage(BaseModel):
+    type: Literal["messages_read"] = "messages_read"
+    user_id: UUID

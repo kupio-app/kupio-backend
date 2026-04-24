@@ -177,6 +177,8 @@ class ChatService:
             await self.repos.conversations.update_last_read_at(
                 conversation_id, current_user.id
             )
+
+        await self.chat_redis.publish_read(conversation_id, current_user.id)
         cursor_created_at, cursor_id = decode_cursor(cursor) if cursor else (None, None)
         msgs = await self.repos.messages.list_with_deleted(
             conversation_id,

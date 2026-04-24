@@ -119,6 +119,7 @@ class ChatWebSocketSession:
 
             await self._touch_notification_tokens(repos, session, user_id)
             await self._touch_conversation_last_read(repos, session, user_id)
+            await self.chat_redis.publish_read(self.conversation_id, user_id)
             await self._send(WsAuthOkMessage(conversation_id=self.conversation_id))
             await self._replay_missed_messages(repos)
 
