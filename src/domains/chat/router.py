@@ -16,10 +16,19 @@ from .schemas import (
     ListMessagesResponse,
     MessageResponse,
     SendMessageRequest,
+    UnreadCountResponse,
 )
 from .ws.handler import handle_chat_ws
 
 router = APIRouter()
+
+
+@router.get("/conversations/unread-count", response_model=UnreadCountResponse)
+async def get_unread_count(
+    current_user: User = Depends(get_current_user),
+    service: ChatService = Depends(get_chat_service),
+):
+    return await service.get_total_unread_count(current_user)
 
 
 @router.post(
@@ -34,8 +43,7 @@ async def start_conversation(
     listings_service: ListingsService = Depends(get_listings_service),
 ):
     listing = await listings_service.get_listing(listing_id)
-    conv = await service.get_or_create_conversation(current_user, listing)
-    return ConversationResponse.model_validate(conv)
+    return await service.get_or_create_conversation(current_user, listing)
 
 
 @router.get("/conversations", response_model=ListConversationsResponse)

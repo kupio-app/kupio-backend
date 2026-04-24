@@ -13,11 +13,16 @@ class ConversationResponse(BaseModel):
     seller_id: UUID
     created_at: datetime.datetime
     last_message_preview: str | None
+    unread_count: int
 
 
 class ListConversationsResponse(BaseModel):
     conversations: list[ConversationResponse]
     next_cursor: str | None
+
+
+class UnreadCountResponse(BaseModel):
+    unread_count: int
 
 
 class MessageResponse(BaseModel):
