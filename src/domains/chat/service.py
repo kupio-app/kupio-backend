@@ -1,4 +1,7 @@
+import logging
 from uuid import UUID
+
+from streaq import StreaqError
 
 from src.worker import send_fcm_push
 from src.core.database.repositories import Repositories
@@ -25,6 +28,9 @@ from .schemas import (
     UnreadCountResponse,
 )
 from .utils import generate_message_preview
+
+
+logger = logging.getLogger(__name__)
 
 
 class ChatService:
@@ -201,8 +207,11 @@ class ChatService:
     ) -> None:
         recipient_id = conv.seller_id if sender_id == conv.buyer_id else conv.buyer_id
         if not await self.chat_redis.is_online(conv.id, recipient_id):
-            await send_fcm_push.enqueue(
-                str(recipient_id),
-                str(conv.id),
-                generate_message_preview(msg),
-            )
+            try:
+                await send_fcm_push.enqueue(
+                    str(recipient_id),
+                    str(conv.id),
+                    generate_message_preview(msg),
+                )
+            except StreaqError as e:
+                logger.error(e)
