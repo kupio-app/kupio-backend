@@ -218,5 +218,6 @@ class ChatWebSocketSession:
         await self.websocket.send_text(msg.model_dump_json())
 
     async def _close_with_error(self, msg: WsErrorMessage, close_code: int) -> None:
+        logger.info("Closed with error %s", msg)
         await self._send(msg)
         await self.websocket.close(code=close_code)
