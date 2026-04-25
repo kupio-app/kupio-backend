@@ -205,6 +205,7 @@ class ChatWebSocketSession:
 
     async def _forward_redis_to_ws(self, pubsub) -> None:
         async for message in pubsub.listen():
+            # message is a low level redis json obj with (type, channel, data fields)
             if message["type"] != "message":
                 continue
 
@@ -213,6 +214,35 @@ class ChatWebSocketSession:
                 data = data.decode()
 
             await self.websocket.send_text(data)
+            await self._maybe_mark_read(data)
+
+    async def _maybe_mark_read(self, raw: str) -> None:
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return
+
+        if parsed.get("type") != "new_message" or parsed.get("sender_id") == str(
+            self._user_id
+        ):
+            return
+
+        await self._mark_read_silently()
+
+    async def _mark_read_silently(self) -> None:
+        try:
+            async with self.session_factory() as session:
+                repos = Repositories.from_session(session)
+                await repos.conversations.update_last_read_at(
+                    self.conversation_id, self._user_id
+                )
+                await session.commit()
+
+            await self.chat_redis.publish_read(self.conversation_id, self._user_id)
+        except Exception:
+            logger.warning(
+                "Failed to mark conversation %s as read", self.conversation_id
+            )
 
     async def _send(self, msg: BaseModel) -> None:
         await self.websocket.send_text(msg.model_dump_json())
