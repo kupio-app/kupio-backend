@@ -66,9 +66,10 @@ After the WebSocket connection is established, the client **must** send an auth 
 { "type": "pong" }
 ```
 
-### `message` — new message
+### `new_message` — new message
 ```json
 {
+  "type": "new_message",
   "id": "<UUID>",
   "conversation_id": "<UUID>",
   "sender_id": "<UUID>",
