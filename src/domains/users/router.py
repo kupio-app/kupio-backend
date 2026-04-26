@@ -111,7 +111,7 @@ async def get_user(user: User = Depends(get_user_by_username)):
     return user
 
 
-@router.get("/{user_id}", response_model=UserPublic)
+@router.get("/id/{user_id}", response_model=UserPublic)
 async def get_user_by_id(user: User = Depends(get_user_by_id)):
     return user
 
