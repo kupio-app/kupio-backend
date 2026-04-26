@@ -42,7 +42,7 @@ class ChatService:
         self.chat_redis = chat_redis
 
     async def get_or_create_conversation(
-        self, current_user: User, listing: Listing
+        self, current_user: User, listing: Listing, start_with: str | None
     ) -> ConversationResponse:
         if listing.user_id == current_user.id:
             raise CannotMessageOwnListingError()
@@ -63,6 +63,10 @@ class ChatService:
                     seller_id=listing.user_id,
                 )
             unread_count = 0
+
+        if start_with is not None:
+            logger.info("Starting conversation %s with starting message", conv.id)
+            await self.send_message(current_user, conv.id, start_with)
 
         return self._conv_response(conv, unread_count)
 

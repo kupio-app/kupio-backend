@@ -49,3 +49,7 @@ class ListMessagesResponse(BaseModel):
 
 class SendMessageRequest(BaseModel):
     body: str = Field(min_length=1, max_length=4000)
+
+
+class ConversationStart(BaseModel):
+    start_with: str | None = Field(None, min_length=1, max_length=4000)
