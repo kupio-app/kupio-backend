@@ -38,13 +38,14 @@ async def get_unread_count(
     status_code=status.HTTP_201_CREATED,
 )
 async def start_conversation(
-    payload: ConversationStart,
+    payload: ConversationStart | None = None,
     listing: Listing = Depends(get_listing_by_id),
     current_user: User = Depends(get_current_user),
     service: ChatService = Depends(get_chat_service),
 ):
+    start_with_message = payload.start_with if payload is not None else None
     return await service.get_or_create_conversation(
-        current_user, listing, payload.start_with
+        current_user, listing, start_with_message
     )
 
 
