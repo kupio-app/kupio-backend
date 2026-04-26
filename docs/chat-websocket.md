@@ -94,7 +94,7 @@ After the WebSocket connection is established, the client **must** send an auth 
 ```json
 { "type": "messages_read", "user_id": "<UUID>" }
 ```
-> Emitted when the participant opens the chat (WS connect) or fetches message history via `GET /conversations/{id}/messages`. All messages sent before this moment should be treated as read by that user.
+> Emitted when the participant opens the chat (WS connect), fetches message history via `GET /conversations/{id}/messages`, or is already connected when a new incoming message is delivered to them. In the last case, the newly delivered message is immediately treated as read by that user, and clients should treat all messages up to that point as read.
 
 ### `error` — an error occurred (connection closes after)
 ```json

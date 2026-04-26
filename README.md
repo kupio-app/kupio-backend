@@ -316,16 +316,16 @@ The chat system uses REST for conversation and message management and WebSockets
 
 **Key REST endpoints:**
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/chat/conversations` | Start or retrieve a conversation for a listing |
-| `GET` | `/api/chat/conversations` | List conversations (role: `buyer` or `seller`) |
-| `GET` | `/api/chat/conversations/unread-count` | Total unread message count across all conversations |
-| `GET` | `/api/chat/conversations/{id}` | Get a single conversation with unread count |
-| `GET` | `/api/chat/conversations/{id}/messages` | Paginated message history (also marks as read) |
-| `POST` | `/api/chat/conversations/{id}/messages` | Send a message |
+| Method | Path                                             | Description |
+|--------|--------------------------------------------------|-------------|
+| `POST` | `/api/chat/conversations/{listing_id}`           | Start or retrieve a conversation for a listing |
+| `GET` | `/api/chat/conversations`                        | List conversations (role: `buyer` or `seller`) |
+| `GET` | `/api/chat/conversations/unread-count`           | Total unread message count across all conversations |
+| `GET` | `/api/chat/conversations/{id}`                   | Get a single conversation with unread count |
+| `GET` | `/api/chat/conversations/{id}/messages`          | Paginated message history (also marks as read) |
+| `POST` | `/api/chat/conversations/{id}/messages`          | Send a message |
 | `DELETE` | `/api/chat/conversations/{id}/messages/{msg_id}` | Soft-delete a message |
-| `WS` | `/api/chat/conversations/{id}/ws` | Real-time WebSocket connection |
+| `WS` | `/api/chat/conversations/{id}/ws`                | Real-time WebSocket connection |
 
 Every `ConversationResponse` includes an `unread_count` field. Messages are marked as read when the user connects via WebSocket or fetches message history via REST; a `messages_read` event is broadcast to the conversation channel so the other participant can update their UI in real time.
 
