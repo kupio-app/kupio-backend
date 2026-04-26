@@ -118,6 +118,8 @@ class ChatWebSocketSession:
                 return False
 
             await self._touch_notification_tokens(repos, session, user_id)
+            await self._touch_conversation_last_read(repos, session, user_id)
+            await self.chat_redis.publish_read(self.conversation_id, user_id)
             await self._send(WsAuthOkMessage(conversation_id=self.conversation_id))
             await self._replay_missed_messages(repos)
 
@@ -132,6 +134,12 @@ class ChatWebSocketSession:
             return False
 
         return True
+
+    async def _touch_conversation_last_read(
+        self, repos: Repositories, session: AsyncSession, user_id: UUID
+    ) -> None:
+        await repos.conversations.update_last_read_at(self.conversation_id, user_id)
+        await session.commit()
 
     async def _touch_notification_tokens(
         self, repos: Repositories, session: AsyncSession, user_id: UUID
@@ -197,6 +205,7 @@ class ChatWebSocketSession:
 
     async def _forward_redis_to_ws(self, pubsub) -> None:
         async for message in pubsub.listen():
+            # message is a low level redis json obj with (type, channel, data fields)
             if message["type"] != "message":
                 continue
 
@@ -205,10 +214,40 @@ class ChatWebSocketSession:
                 data = data.decode()
 
             await self.websocket.send_text(data)
+            await self._maybe_mark_read(data)
+
+    async def _maybe_mark_read(self, raw: str) -> None:
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return
+
+        if parsed.get("type") != "new_message" or parsed.get("sender_id") == str(
+            self._user_id
+        ):
+            return
+
+        await self._mark_read_silently()
+
+    async def _mark_read_silently(self) -> None:
+        try:
+            async with self.session_factory() as session:
+                repos = Repositories.from_session(session)
+                await repos.conversations.update_last_read_at(
+                    self.conversation_id, self._user_id
+                )
+                await session.commit()
+
+            await self.chat_redis.publish_read(self.conversation_id, self._user_id)
+        except Exception:
+            logger.warning(
+                "Failed to mark conversation %s as read", self.conversation_id
+            )
 
     async def _send(self, msg: BaseModel) -> None:
         await self.websocket.send_text(msg.model_dump_json())
 
     async def _close_with_error(self, msg: WsErrorMessage, close_code: int) -> None:
+        logger.info("Closed with error %s", msg)
         await self._send(msg)
         await self.websocket.close(code=close_code)

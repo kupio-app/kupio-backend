@@ -66,9 +66,10 @@ After the WebSocket connection is established, the client **must** send an auth 
 { "type": "pong" }
 ```
 
-### `message` — new message
+### `new_message` — new message
 ```json
 {
+  "type": "new_message",
   "id": "<UUID>",
   "conversation_id": "<UUID>",
   "sender_id": "<UUID>",
@@ -88,6 +89,12 @@ After the WebSocket connection is established, the client **must** send an auth 
 ```json
 { "type": "typing", "user_id": "<UUID>" }
 ```
+
+### `messages_read` — the other participant read the messages
+```json
+{ "type": "messages_read", "user_id": "<UUID>" }
+```
+> Emitted when the participant opens the chat (WS connect), fetches message history via `GET /conversations/{id}/messages`, or is already connected when a new incoming message is delivered to them. In the last case, the newly delivered message is immediately treated as read by that user, and clients should treat all messages up to that point as read.
 
 ### `error` — an error occurred (connection closes after)
 ```json
@@ -127,6 +134,8 @@ Client                              Server
   |                                   |
   |<-- { message object } ------------|   real-time incoming messages
   |                                   |
+  |<-- { type: messages_read, ... } --|   when other participant opens chat or fetches messages
+  |                                   |
   |-------- disconnect -------------->|
 ```
 
@@ -138,3 +147,4 @@ Client                              Server
 - **Message replay** — on reconnect, pass `last_message_id` to receive up to 200 messages that arrived while disconnected.
 - **Malformed JSON** — invalid JSON received after authentication is silently ignored; the connection stays open.
 - **Soft deletes** — deleted messages are never removed from the database. On deletion the server broadcasts a `message_deleted` event (with only `message_id`) to all connected participants. When fetching message history via REST, deleted messages are returned with `is_deleted: true` and `content: null`.
+- **Read receipts** — the server broadcasts `messages_read` to the conversation channel whenever a participant marks messages as read (on WS connect or REST message fetch). The `unread_count` field on conversation objects and the `GET /conversations/unread-count` endpoint reflect the current unread state.

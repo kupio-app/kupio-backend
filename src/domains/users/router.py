@@ -14,6 +14,7 @@ from .dependencies import (
     get_users_service,
     get_notification_token_service,
     get_user_by_username,
+    get_user_by_id,
 )
 from .models import User
 from .schemas import (
@@ -107,6 +108,11 @@ async def register_notification_token(
 
 @router.get("/{username}", response_model=UserPublic)
 async def get_user(user: User = Depends(get_user_by_username)):
+    return user
+
+
+@router.get("/id/{user_id}", response_model=UserPublic)
+async def get_user_by_id(user: User = Depends(get_user_by_id)):
     return user
 
 

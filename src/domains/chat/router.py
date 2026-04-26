@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends, status, WebSocket, Query
 
 from src.core.dependencies import get_current_user
 from src.core.utils.pagination import PaginationParams
-from src.domains.listings.service import ListingsService
-from src.domains.listings.dependencies import get_listings_service
+from src.domains.listings.dependencies import get_listing_by_id
+from src.domains.listings.models import Listing
 from src.domains.users.models import User
 
 from .dependencies import get_chat_service
@@ -16,10 +16,20 @@ from .schemas import (
     ListMessagesResponse,
     MessageResponse,
     SendMessageRequest,
+    UnreadCountResponse,
+    ConversationStart,
 )
 from .ws.handler import handle_chat_ws
 
 router = APIRouter()
+
+
+@router.get("/conversations/unread-count", response_model=UnreadCountResponse)
+async def get_unread_count(
+    current_user: User = Depends(get_current_user),
+    service: ChatService = Depends(get_chat_service),
+):
+    return await service.get_total_unread_count(current_user)
 
 
 @router.post(
@@ -28,14 +38,15 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
 )
 async def start_conversation(
-    listing_id: UUID,
+    payload: ConversationStart | None = None,
+    listing: Listing = Depends(get_listing_by_id),
     current_user: User = Depends(get_current_user),
     service: ChatService = Depends(get_chat_service),
-    listings_service: ListingsService = Depends(get_listings_service),
 ):
-    listing = await listings_service.get_listing(listing_id)
-    conv = await service.get_or_create_conversation(current_user, listing)
-    return ConversationResponse.model_validate(conv)
+    start_with_message = payload.start_with if payload is not None else None
+    return await service.get_or_create_conversation(
+        current_user, listing, start_with_message
+    )
 
 
 @router.get("/conversations", response_model=ListConversationsResponse)

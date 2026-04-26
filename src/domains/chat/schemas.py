@@ -1,5 +1,6 @@
 import datetime
 
+from typing import Literal
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -13,6 +14,7 @@ class ConversationResponse(BaseModel):
     seller_id: UUID
     created_at: datetime.datetime
     last_message_preview: str | None
+    unread_count: int
 
 
 class ListConversationsResponse(BaseModel):
@@ -20,9 +22,14 @@ class ListConversationsResponse(BaseModel):
     next_cursor: str | None
 
 
+class UnreadCountResponse(BaseModel):
+    unread_count: int
+
+
 class MessageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    type: Literal["new_message"] = "new_message"
     id: UUID
     conversation_id: UUID
     sender_id: UUID
@@ -42,3 +49,7 @@ class ListMessagesResponse(BaseModel):
 
 class SendMessageRequest(BaseModel):
     body: str = Field(min_length=1, max_length=4000)
+
+
+class ConversationStart(BaseModel):
+    start_with: str | None = Field(None, min_length=1, max_length=4000)

@@ -1,4 +1,7 @@
+import logging
 from uuid import UUID
+
+from streaq import StreaqError
 
 from src.worker import send_fcm_push
 from src.core.database.repositories import Repositories
@@ -22,8 +25,12 @@ from .schemas import (
     ListConversationsResponse,
     ListMessagesResponse,
     MessageResponse,
+    UnreadCountResponse,
 )
 from .utils import generate_message_preview
+
+
+logger = logging.getLogger(__name__)
 
 
 class ChatService:
@@ -35,8 +42,8 @@ class ChatService:
         self.chat_redis = chat_redis
 
     async def get_or_create_conversation(
-        self, current_user: User, listing: Listing
-    ) -> Conversation:
+        self, current_user: User, listing: Listing, start_with: str | None
+    ) -> ConversationResponse:
         if listing.user_id == current_user.id:
             raise CannotMessageOwnListingError()
 
@@ -44,26 +51,37 @@ class ChatService:
             listing.id, current_user.id
         )
         if existing:
-            return existing
-
-        async with self.uow:
-            return await self.repos.conversations.create(
-                listing_id=listing.id,
-                buyer_id=current_user.id,
-                seller_id=listing.user_id,
+            row = await self.repos.conversations.get_with_unread_count(
+                existing.id, current_user.id
             )
+            conv, unread_count = row
+        else:
+            async with self.uow:
+                conv = await self.repos.conversations.create(
+                    listing_id=listing.id,
+                    buyer_id=current_user.id,
+                    seller_id=listing.user_id,
+                )
+            unread_count = 0
+
+        if start_with is not None:
+            logger.info("Starting conversation %s with starting message", conv.id)
+            await self.send_message(current_user, conv.id, start_with)
+
+        return self._conv_response(conv, unread_count)
 
     async def get_conversation(
         self, current_user: User, conversation_id: UUID
-    ) -> Conversation:
-        conv = await self.repos.conversations.get_by_id(conversation_id)
-        if conv is None:
+    ) -> ConversationResponse:
+        row = await self.repos.conversations.get_with_unread_count(
+            conversation_id, current_user.id
+        )
+        if row is None:
             raise ConversationNotFoundError()
-
+        conv, unread_count = row
         if current_user.id not in (conv.buyer_id, conv.seller_id):
             raise NotConversationParticipantError()
-
-        return conv
+        return self._conv_response(conv, unread_count)
 
     async def list_conversations(
         self,
@@ -76,26 +94,53 @@ class ChatService:
         cursor_created_at, cursor_id = decode_cursor(cursor) if cursor else (None, None)
 
         seller_or_buyer = {role.value.lower() + "_id": current_user.id}
-        convs = await self.repos.conversations.list_as(
+        rows = await self.repos.conversations.list_as(
             **seller_or_buyer,
             limit=limit,
             cursor_created_at=cursor_created_at,
             cursor_id=cursor_id,
         )
         next_cursor = (
-            encode_cursor(convs[-1].created_at, convs[-1].id)
-            if len(convs) == limit
+            encode_cursor(rows[-1][0].created_at, rows[-1][0].id)
+            if len(rows) == limit
             else None
         )
         return ListConversationsResponse(
-            conversations=[ConversationResponse.model_validate(c) for c in convs],
+            conversations=[self._conv_response(conv, unread) for conv, unread in rows],
             next_cursor=next_cursor,
         )
+
+    async def get_total_unread_count(self, current_user: User) -> UnreadCountResponse:
+        count = await self.repos.conversations.get_total_unread_count(current_user.id)
+        return UnreadCountResponse(unread_count=count)
+
+    def _conv_response(
+        self, conv: Conversation, unread_count: int
+    ) -> ConversationResponse:
+        return ConversationResponse(
+            id=conv.id,
+            listing_id=conv.listing_id,
+            buyer_id=conv.buyer_id,
+            seller_id=conv.seller_id,
+            created_at=conv.created_at,
+            last_message_preview=conv.last_message_preview,
+            unread_count=unread_count,
+        )
+
+    async def _get_participant_conversation(
+        self, current_user: User, conversation_id: UUID
+    ) -> Conversation:
+        conv = await self.repos.conversations.get_by_id(conversation_id)
+        if conv is None:
+            raise ConversationNotFoundError()
+        if current_user.id not in (conv.buyer_id, conv.seller_id):
+            raise NotConversationParticipantError()
+        return conv
 
     async def send_message(
         self, current_user: User, conversation_id: UUID, body: str
     ) -> Message:
-        conv = await self.get_conversation(current_user, conversation_id)
+        conv = await self._get_participant_conversation(current_user, conversation_id)
 
         async with self.uow:
             msg = await self.repos.messages.create(
@@ -114,7 +159,7 @@ class ChatService:
     async def delete_message(
         self, current_user: User, conversation_id: UUID, message_id: UUID
     ) -> None:
-        await self.get_conversation(current_user, conversation_id)
+        await self._get_participant_conversation(current_user, conversation_id)
 
         msg = await self.repos.messages.get_by_id_in_conversation(
             message_id, conversation_id
@@ -137,7 +182,13 @@ class ChatService:
         limit: int,
         cursor: str | None,
     ) -> ListMessagesResponse:
-        await self.get_conversation(current_user, conversation_id)
+        await self._get_participant_conversation(current_user, conversation_id)
+        async with self.uow:
+            await self.repos.conversations.update_last_read_at(
+                conversation_id, current_user.id
+            )
+
+        await self.chat_redis.publish_read(conversation_id, current_user.id)
         cursor_created_at, cursor_id = decode_cursor(cursor) if cursor else (None, None)
         msgs = await self.repos.messages.list_with_deleted(
             conversation_id,
@@ -160,8 +211,11 @@ class ChatService:
     ) -> None:
         recipient_id = conv.seller_id if sender_id == conv.buyer_id else conv.buyer_id
         if not await self.chat_redis.is_online(conv.id, recipient_id):
-            await send_fcm_push.enqueue(
-                str(recipient_id),
-                str(conv.id),
-                generate_message_preview(msg),
-            )
+            try:
+                await send_fcm_push.enqueue(
+                    str(recipient_id),
+                    str(conv.id),
+                    generate_message_preview(msg),
+                )
+            except StreaqError as e:
+                logger.error(e)

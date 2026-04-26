@@ -36,6 +36,10 @@ class ChatRedisManager:
         payload = mjson.encode_bytes({"type": "typing", "user_id": str(user_id)})
         await self._redis.publish(self.conversation_channel(conversation_id), payload)
 
+    async def publish_read(self, conversation_id: UUID, user_id: UUID) -> None:
+        payload = mjson.encode_bytes({"type": "messages_read", "user_id": str(user_id)})
+        await self._redis.publish(self.conversation_channel(conversation_id), payload)
+
     async def is_online(self, conversation_id: UUID, user_id: UUID) -> bool:
         return bool(
             await self._redis.exists(self.presence_key(conversation_id, user_id))
