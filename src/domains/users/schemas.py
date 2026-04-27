@@ -22,19 +22,16 @@ class UserPublic(BaseModel):
     username: str
     display_name: str | None
     avatar_url: str | None = None
+    created_at: datetime.datetime
 
 
-class UserPrivate(BaseModel):
+class UserPrivate(UserPublic):
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
-    username: str | None
-    display_name: str | None
     email: str
     role: UserRole
     needs_username: bool
     balance: int  # balance in cents
-    avatar_url: str | None = None
 
 
 class UpdateUserProfile(BaseModel):
