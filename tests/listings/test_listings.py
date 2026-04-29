@@ -760,6 +760,7 @@ async def test_get_listing_by_id(client, session_factory):
 
     assert resp.status_code == 200
     assert resp.json()["id"] == listing["id"]
+    assert resp.json()["seen_count"] == 0
 
 
 async def test_get_listing_does_not_count_seen_by_default(client, session_factory):
@@ -779,6 +780,7 @@ async def test_get_listing_does_not_count_seen_by_default(client, session_factor
     )
 
     assert resp.status_code == 200
+    assert resp.json()["seen_count"] == 0
     assert await _count_views(session_factory, listing_id=listing["id"]) == 0
 
 
@@ -799,6 +801,7 @@ async def test_get_listing_does_not_count_seen_when_flag_false(client, session_f
     )
 
     assert resp.status_code == 200
+    assert resp.json()["seen_count"] == 0
     assert await _count_views(session_factory, listing_id=listing["id"]) == 0
 
 
@@ -819,6 +822,7 @@ async def test_get_listing_counts_seen_when_flag_true(client, session_factory):
     )
 
     assert resp.status_code == 200
+    assert resp.json()["seen_count"] == 1
     assert await _count_views(session_factory, listing_id=listing["id"]) == 1
 
 
@@ -835,6 +839,7 @@ async def test_get_listing_counts_repeated_anonymous_seen(client, session_factor
 
     assert first_resp.status_code == 200
     assert second_resp.status_code == 200
+    assert second_resp.json()["seen_count"] == 2
     assert await _count_views(session_factory, listing_id=listing["id"]) == 2
 
 

@@ -29,6 +29,10 @@ class ListingResponse(BaseModel):
     updated_at: datetime.datetime | None
 
 
+class ListingDetailResponse(ListingResponse):
+    seen_count: int
+
+
 class ListListingsResponse(BaseModel):
     listings: list[ListingResponse]
     next_cursor: str | None
