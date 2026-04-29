@@ -10,6 +10,7 @@ from src.domains.listings.models import Listing
 from src.domains.listings.dependencies import get_listing_by_id
 
 from .dependencies import get_favourites_service
+from .schemas import FavouritedListingsIds
 from .service import FavouritesService
 
 router = APIRouter()
@@ -26,6 +27,14 @@ async def get_favourites(
         limit=pagination.limit,
         cursor=pagination.cursor,
     )
+
+
+@router.get("/ids", response_model=FavouritedListingsIds)
+async def get_all_favourites_ids(
+    current_user: User = Depends(get_current_user),
+    service: FavouritesService = Depends(get_favourites_service),
+):
+    return await service.get_all_favourites_ids(current_user)
 
 
 @router.post("/{listing_id}", status_code=status.HTTP_201_CREATED)
