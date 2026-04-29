@@ -1,7 +1,8 @@
-from typing import Any, Optional, Sequence, TypeVar
+from typing import Any, Optional, Sequence, TypeVar, overload
 
 from sqlalchemy import ColumnExpressionArgument, delete, insert, select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.base import ExecutableOption
 
 from .base_model import Base
@@ -9,6 +10,7 @@ from .mixins import SoftDeleteMixin, SoftDeletableModel
 
 ModelType = TypeVar("ModelType", bound=Base)
 SoftDeleteModelType = TypeVar("SoftDeleteModelType", bound=SoftDeletableModel)
+FieldType = TypeVar("FieldType")
 
 
 class BaseRepository:
@@ -42,6 +44,7 @@ class BaseRepository:
 
         return await self.session.scalar(stmt)
 
+    @overload
     async def _get_many(
         self,
         model: type[ModelType],
@@ -49,9 +52,28 @@ class BaseRepository:
         limit: int | None = None,
         offset: int = 0,
         order_by: Sequence[ColumnExpressionArgument[Any]] | None = None,
-    ) -> list[ModelType]:
+    ) -> list[ModelType]: ...
+
+    @overload
+    async def _get_many(
+        self,
+        model: InstrumentedAttribute[FieldType],
+        *conditions: ColumnExpressionArgument[Any],
+        limit: int | None = None,
+        offset: int = 0,
+        order_by: Sequence[ColumnExpressionArgument[Any]] | None = None,
+    ) -> list[FieldType]: ...
+
+    async def _get_many(
+        self,
+        model: type[ModelType] | InstrumentedAttribute[FieldType],
+        *conditions: ColumnExpressionArgument[Any],
+        limit: int | None = None,
+        offset: int = 0,
+        order_by: Sequence[ColumnExpressionArgument[Any]] | None = None,
+    ) -> list[ModelType] | list[FieldType]:
         all_conditions = list(conditions)
-        if issubclass(model, SoftDeleteMixin):
+        if isinstance(model, type) and issubclass(model, SoftDeleteMixin):
             all_conditions.append(model.deleted_at.is_(None))
 
         stmt = select(model).where(*all_conditions).limit(limit).offset(offset)
