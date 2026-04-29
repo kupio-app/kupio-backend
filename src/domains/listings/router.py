@@ -24,6 +24,7 @@ from .exceptions import InvalidListingPriceRangeError
 from .models import Listing
 from .schemas import (
     ListingRequest,
+    ListingDetailResponse,
     ListingResponse,
     ListListingsResponse,
     ListingStatusUpdateRequest,
@@ -75,7 +76,7 @@ async def get_listings(
     )
 
 
-@router.get("/{listing_id}", response_model=ListingResponse)
+@router.get("/{listing_id}", response_model=ListingDetailResponse)
 async def get_listing(
     listing_id: UUID,
     count_seen: bool = Query(default=False),

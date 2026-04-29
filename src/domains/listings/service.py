@@ -14,6 +14,7 @@ from .schemas import (
     ListListingsResponse,
     ListOwnerListingsResponse,
     ListingRequest,
+    ListingDetailResponse,
     ListingResponse,
     OwnerListingResponse,
 )
@@ -171,7 +172,7 @@ class ListingsService:
         *,
         current_user: User | None = None,
         count_seen: bool = False,
-    ) -> ListingResponse:
+    ) -> ListingDetailResponse:
         if (
             listing := await self.listings_repo.get_for_response_by_id(listing_id)
         ) is None:
@@ -191,10 +192,8 @@ class ListingsService:
                 )
 
         seen_count = await self.repos.listing_views.count_by_listing_id(listing.id)
-        listing_data = ListingResponse.model_validate(listing).model_dump(
-            exclude={"seen_count"}
-        )
-        return ListingResponse(**listing_data, seen_count=seen_count)
+        listing_data = ListingResponse.model_validate(listing).model_dump()
+        return ListingDetailResponse(**listing_data, seen_count=seen_count)
 
     @staticmethod
     def _should_count_seen(
