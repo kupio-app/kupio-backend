@@ -41,6 +41,10 @@ class Listing(Base, SoftDeleteMixin):
     status: M[ListingStatus] = mc(Enum(ListingStatus))
     custom_filters: M[JSONDict | None] = mc(default=None)
 
+    phone: M[str | None] = mc(String(20), default=None)
+    contact_name: M[str | None] = mc(String(100), default=None)
+    is_calls_disabled: M[bool] = mc(default=False)
+
 
 class ListingView(Base):
     __tablename__ = "listing_views"

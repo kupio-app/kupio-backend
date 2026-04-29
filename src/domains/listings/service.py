@@ -53,6 +53,9 @@ class ListingsService:
                 currency=listing_data.currency,
                 status=ListingStatus.INACTIVE,
                 custom_filters=listing_data.custom_filters,
+                phone=listing_data.phone,
+                contact_name=listing_data.contact_name,
+                is_calls_disabled=listing_data.is_calls_disabled,
             )
 
     async def update_listing_status(
@@ -88,6 +91,9 @@ class ListingsService:
                 is_tradable=listing_data.is_tradable,
                 currency=listing_data.currency,
                 custom_filters=listing_data.custom_filters,
+                phone=listing_data.phone,
+                contact_name=listing_data.contact_name,
+                is_calls_disabled=listing_data.is_calls_disabled,
             )
 
     async def list_listings(
@@ -192,8 +198,20 @@ class ListingsService:
                 )
 
         seen_count = await self.repos.listing_views.count_by_listing_id(listing.id)
-        listing_data = ListingResponse.model_validate(listing).model_dump()
-        return ListingDetailResponse(**listing_data, seen_count=seen_count)
+
+        phone, contact_name = None, None
+        if current_user is not None:
+            if not listing.is_calls_disabled:
+                phone = listing.phone or listing.user.phone
+                contact_name = listing.contact_name or listing.user.display_name
+
+        base = ListingResponse.model_validate(listing)
+        return ListingDetailResponse.model_construct(
+            **base.model_dump(),
+            seen_count=seen_count,
+            phone=phone,
+            contact_name=contact_name,
+        )
 
     @staticmethod
     def _should_count_seen(

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any
 
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic_extra_types.phone_numbers import PhoneNumber
 
 from src.domains.categories.schemas import CategorySlim
 from src.domains.images.schemas import ListingImageResponse
@@ -31,6 +32,9 @@ class ListingResponse(BaseModel):
 
 class ListingDetailResponse(ListingResponse):
     seen_count: int
+    is_calls_disabled: bool
+    phone: str | None
+    contact_name: str | None
 
 
 class ListListingsResponse(BaseModel):
@@ -74,6 +78,9 @@ class ListingRequest(BaseModel):
     currency: CurrencyEnum
     category_id: int
     custom_filters: dict[str, Any] | None = None
+    phone: PhoneNumber | None = Field(None, max_length=20)
+    contact_name: str | None = Field(None, max_length=100)
+    is_calls_disabled: bool = False
 
     @model_validator(mode="after")
     def check_price(self) -> "ListingRequest":
