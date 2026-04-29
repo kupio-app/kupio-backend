@@ -152,6 +152,9 @@ class ListingsRepository(BaseRepository):
         currency: CurrencyEnum,
         status: ListingStatus,
         custom_filters: dict | None = None,
+        phone: str | None = None,
+        contact_name: str | None = None,
+        is_calls_disabled: bool = False,
     ) -> Listing:
         listing = await self._add(
             Listing,
@@ -165,6 +168,9 @@ class ListingsRepository(BaseRepository):
             currency=currency,
             status=status,
             custom_filters=custom_filters,
+            phone=phone,
+            contact_name=contact_name,
+            is_calls_disabled=is_calls_disabled,
         )
         listing_id = listing.id
         return await self.get_for_response_by_id(listing_id, populate_existing=True)
