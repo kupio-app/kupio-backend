@@ -19,7 +19,7 @@ class UserPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    username: str
+    username: str | None
     display_name: str | None
     avatar_url: str | None = None
     created_at: datetime.datetime
@@ -28,7 +28,6 @@ class UserPublic(BaseModel):
 class UserPrivate(UserPublic):
     model_config = ConfigDict(from_attributes=True)
 
-    username: str | None
     email: str
     role: UserRole
     needs_username: bool
