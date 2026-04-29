@@ -31,6 +31,7 @@ class UserPrivate(UserPublic):
     email: str
     role: UserRole
     needs_username: bool
+    phone: str | None
     balance: int  # balance in cents
 
 
