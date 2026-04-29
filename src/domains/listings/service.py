@@ -171,26 +171,30 @@ class ListingsService:
         *,
         current_user: User | None = None,
         count_seen: bool = False,
-    ) -> Listing:
+    ) -> ListingResponse:
         if (
             listing := await self.listings_repo.get_for_response_by_id(listing_id)
         ) is None:
             raise ListingNotFoundError()
 
-        if not self._should_count_seen(
+        if self._should_count_seen(
             listing=listing,
             current_user=current_user,
             count_seen=count_seen,
         ):
-            return listing
+            async with self.uow:
+                await self.repos.listing_views.create(
+                    listing_id=listing.id,
+                    viewer_user_id=(
+                        current_user.id if current_user is not None else None
+                    ),
+                )
 
-        async with self.uow:
-            await self.repos.listing_views.create(
-                listing_id=listing.id,
-                viewer_user_id=current_user.id if current_user is not None else None,
-            )
-
-        return listing
+        seen_count = await self.repos.listing_views.count_by_listing_id(listing.id)
+        listing_data = ListingResponse.model_validate(listing).model_dump(
+            exclude={"seen_count"}
+        )
+        return ListingResponse(**listing_data, seen_count=seen_count)
 
     @staticmethod
     def _should_count_seen(

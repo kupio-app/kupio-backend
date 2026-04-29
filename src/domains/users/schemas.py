@@ -28,6 +28,7 @@ class UserPublic(BaseModel):
 class UserPrivate(UserPublic):
     model_config = ConfigDict(from_attributes=True)
 
+    username: str | None
     email: str
     role: UserRole
     needs_username: bool

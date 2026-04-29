@@ -385,6 +385,12 @@ class ListingsRepository(BaseRepository):
 
 
 class ListingViewsRepository(BaseRepository):
+    async def count_by_listing_id(self, listing_id: UUID) -> int:
+        stmt = select(func.count(ListingView.id)).where(
+            ListingView.listing_id == listing_id
+        )
+        return int((await self.session.scalar(stmt)) or 0)
+
     async def create(
         self,
         *,

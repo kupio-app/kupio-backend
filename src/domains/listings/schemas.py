@@ -27,6 +27,7 @@ class ListingResponse(BaseModel):
     images: list[ListingImageResponse] = Field(default_factory=list)
     created_at: datetime.datetime
     updated_at: datetime.datetime | None
+    seen_count: int = 0
 
 
 class ListListingsResponse(BaseModel):
@@ -43,9 +44,9 @@ class OwnerListingResponse(ListingResponse):
 
     @classmethod
     def build_from(cls, listing_stats: "OwnerListingStats") -> "OwnerListingResponse":
-        listing_data = ListingResponse.model_validate(
-            listing_stats.listing
-        ).model_dump()
+        listing_data = ListingResponse.model_validate(listing_stats.listing).model_dump(
+            exclude={"seen_count"}
+        )
         return cls(
             **listing_data,
             seen_count=listing_stats.seen_count,
