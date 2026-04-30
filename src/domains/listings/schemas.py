@@ -20,6 +20,8 @@ class ListingResponse(BaseModel):
     title: str
     description: str
     price: int
+    is_free: bool
+    is_tradable: bool
     currency: CurrencyEnum
     status: ListingStatus
     user_id: UUID
