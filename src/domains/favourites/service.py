@@ -15,6 +15,7 @@ from .exceptions import (
     ListingNotInFavouritesError,
 )
 from .repository import FavouritesRepository
+from .schemas import FavouritedListingsIds
 
 
 class FavouritesService:
@@ -73,6 +74,13 @@ class FavouritesService:
         return ListListingsResponse(
             listings=[ListingResponse.model_validate(x.listing) for x in favourites],
             next_cursor=next_cursor,
+        )
+
+    async def get_all_favourites_ids(self, current_user: User) -> FavouritedListingsIds:
+        return FavouritedListingsIds(
+            listings_ids=await self.favourites_repo.get_favourited_listings_ids(
+                user_id=current_user.id
+            )
         )
 
     async def _favourite_exists(self, user_id: UUID, listing_id: UUID) -> bool:

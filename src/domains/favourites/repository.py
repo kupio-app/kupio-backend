@@ -54,6 +54,11 @@ class FavouritesRepository(BaseRepository):
             ListingFavourite.listing_id == listing_id,
         )
 
+    async def get_favourited_listings_ids(self, user_id) -> list[UUID]:
+        return await self._get_many(
+            ListingFavourite.listing_id, ListingFavourite.user_id == user_id
+        )
+
     async def list_favourited_listings(
         self,
         *,
