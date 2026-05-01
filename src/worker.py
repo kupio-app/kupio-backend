@@ -7,6 +7,7 @@ from streaq import Worker, WorkerDepends
 
 from src.core.config import get_config
 from src.core.worker.context import WorkerContext, lifespan
+from src.core.worker.schemas import FcmPushPayload
 from src.core.database.repositories import Repositories
 from src.domains.promotions.repository import ListingPromotionsRepository
 
@@ -33,8 +34,7 @@ async def deactivate_expired_promotions(ctx: WorkerContext = WorkerDepends()) ->
 @worker.task()
 async def send_fcm_push(
     recipient_user_id: str,
-    conversation_id: str,
-    message_preview: str,
+    notification: FcmPushPayload,
     ctx: WorkerContext = WorkerDepends(),
 ) -> None:
     async with ctx.session_factory() as session:
@@ -51,13 +51,10 @@ async def send_fcm_push(
         for notification_token in notification_tokens:
             fcm_message = messaging.Message(
                 notification=messaging.Notification(
-                    title="New message",
-                    body=message_preview,
+                    title=notification.title,
+                    body=notification.body,
                 ),
-                data={
-                    "conversation_id": conversation_id,
-                    "type": "chat_message",
-                },
+                data={"type": notification.type, **notification.data},
                 token=notification_token.token,
             )
 

@@ -4,6 +4,7 @@ from uuid import UUID
 from streaq import StreaqError
 
 from src.worker import send_fcm_push
+from src.core.worker.schemas import FcmPushPayload
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
 from src.core.utils.pagination import decode_cursor, encode_cursor
@@ -214,8 +215,12 @@ class ChatService:
             try:
                 await send_fcm_push.enqueue(
                     str(recipient_id),
-                    str(conv.id),
-                    generate_message_preview(msg),
+                    FcmPushPayload(
+                        title="New message",
+                        body=generate_message_preview(msg),
+                        type="chat_message",
+                        data={"conversation_id": str(conv.id)},
+                    ),
                 )
             except StreaqError as e:
                 logger.error(e)
