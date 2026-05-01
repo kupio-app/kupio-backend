@@ -1,5 +1,3 @@
-from uuid import UUID
-
 from fastapi import Depends
 
 from src.core.dependencies import RepositoriesDeps, get_uow
@@ -28,10 +26,3 @@ async def get_user_by_username(
     service: UsersService = Depends(get_users_service),
 ) -> User:
     return await service.get_user(username)
-
-
-async def get_user_by_id(
-    user_id: UUID,
-    service: UsersService = Depends(get_users_service),
-) -> User:
-    return await service.get_user_by_id(user_id)
