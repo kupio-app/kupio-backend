@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, status, Query
 
 from src.core.dependencies import get_current_user
@@ -14,7 +16,6 @@ from .dependencies import (
     get_users_service,
     get_notification_token_service,
     get_user_by_username,
-    get_user_by_id,
 )
 from .models import User
 from .schemas import (
@@ -112,8 +113,11 @@ async def get_user(user: User = Depends(get_user_by_username)):
 
 
 @router.get("/id/{user_id}", response_model=UserPublic)
-async def get_user_by_id(user: User = Depends(get_user_by_id)):
-    return user
+async def get_user_by_id(
+    user_id: UUID,
+    service: UsersService = Depends(get_users_service),
+):
+    return await service.get_current_user_for_response(user_id)
 
 
 @router.get("/{username}/listings", response_model=ListListingsResponse)
