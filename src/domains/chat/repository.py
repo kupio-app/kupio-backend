@@ -6,6 +6,7 @@ from sqlalchemy import case, func, select, and_, or_, ColumnElement
 
 from src.core.database.base_repository import BaseRepository
 from src.domains.chat.models import Conversation, Message
+from src.domains.listings.models import Listing
 
 
 class ConversationsRepository(BaseRepository):
@@ -146,6 +147,14 @@ class ConversationsRepository(BaseRepository):
             )
         )
         return await self.session.scalar(stmt) or 0
+
+    async def get_conversation_listing_title(self, conversation_id: UUID) -> str | None:
+        stmt = (
+            select(Listing.title)
+            .where(Conversation.id == conversation_id)
+            .join(Conversation, Conversation.listing_id == Listing.id)
+        )
+        return await self.session.scalar(stmt)
 
 
 class MessagesRepository(BaseRepository):

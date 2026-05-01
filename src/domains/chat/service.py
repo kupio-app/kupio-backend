@@ -4,6 +4,7 @@ from uuid import UUID
 from streaq import StreaqError
 
 from src.worker import send_fcm_push
+from src.core.worker.schemas import FcmPushPayload
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
 from src.core.utils.pagination import decode_cursor, encode_cursor
@@ -141,6 +142,9 @@ class ChatService:
         self, current_user: User, conversation_id: UUID, body: str
     ) -> Message:
         conv = await self._get_participant_conversation(current_user, conversation_id)
+        listing_title = await self.repos.conversations.get_conversation_listing_title(
+            conversation_id
+        )
 
         async with self.uow:
             msg = await self.repos.messages.create(
@@ -153,7 +157,7 @@ class ChatService:
             )
 
         await self.chat_redis.publish_message(msg)
-        await self._maybe_enqueue_push(conv, msg, current_user.id)
+        await self._maybe_enqueue_push(conv, msg, listing_title, current_user.id)
         return msg
 
     async def delete_message(
@@ -207,15 +211,23 @@ class ChatService:
         )
 
     async def _maybe_enqueue_push(
-        self, conv: Conversation, msg: Message, sender_id: UUID
+        self,
+        conv: Conversation,
+        msg: Message,
+        listing_title: str | None,
+        sender_id: UUID,
     ) -> None:
         recipient_id = conv.seller_id if sender_id == conv.buyer_id else conv.buyer_id
         if not await self.chat_redis.is_online(conv.id, recipient_id):
             try:
                 await send_fcm_push.enqueue(
                     str(recipient_id),
-                    str(conv.id),
-                    generate_message_preview(msg),
+                    FcmPushPayload(
+                        title=listing_title,
+                        body=generate_message_preview(msg),
+                        type="chat_message",
+                        data={"conversation_id": str(conv.id)},
+                    ),
                 )
             except StreaqError as e:
                 logger.error(e)
