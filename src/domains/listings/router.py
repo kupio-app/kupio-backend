@@ -19,7 +19,7 @@ from .dependencies import (
     get_listings_service,
     get_owned_listing_by_id,
 )
-from .enums import ListingStatus
+from .enums import ListingStatus, SortBy
 from .exceptions import InvalidListingPriceRangeError
 from .models import Listing
 from .schemas import (
@@ -46,6 +46,7 @@ async def get_listings(
     filters: str | None = Query(
         default=None, description='JSON object, {"ram":"16 GB"}'
     ),
+    sort_by: SortBy = Query(default=SortBy.RECOMMENDED),
     service: ListingsService = Depends(get_listings_service),
 ):
     if min_price is not None and max_price is not None and min_price > max_price:
@@ -72,6 +73,7 @@ async def get_listings(
         is_tradable=is_tradable,
         custom_filters=custom_filters,
         limit=pagination.limit,
+        sort_by=sort_by,
         cursor=pagination.cursor,
     )
 

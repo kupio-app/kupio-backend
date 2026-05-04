@@ -1,4 +1,5 @@
 import datetime
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -13,7 +14,7 @@ from src.domains.favourites.models import ListingFavourite
 from src.domains.images.models import ListingImage
 from src.domains.promotions.enums import PromotionStatus, PromotionType
 from src.domains.promotions.models import ListingPromotion, PromotionPacket
-from .enums import CurrencyEnum, ListingStatus
+from .enums import CurrencyEnum, ListingStatus, SortBy
 from .models import Listing, ListingView
 
 
@@ -194,8 +195,10 @@ class ListingsRepository(BaseRepository):
         is_tradable: bool | None = None,
         custom_filters: dict | None = None,
         limit: int = 20,
+        sort_by: SortBy = SortBy.RECOMMENDED,
         cursor_rank: int | None = None,
         cursor_created_at: datetime.datetime | None = None,
+        cursor_price: int | None = None,
         cursor_id: UUID | None = None,
     ) -> list[ListingWithPromotions]:
         conditions = self._search_conditions(
@@ -210,7 +213,7 @@ class ListingsRepository(BaseRepository):
             custom_filters=custom_filters,
         )
 
-        promotion_info = (
+        rank_info = (
             select(
                 ListingPromotion.listing_id,
                 func.max(
@@ -220,7 +223,6 @@ class ListingsRepository(BaseRepository):
                         else_=0,
                     )
                 ).label("rank"),
-                func.array_agg(PromotionPacket.type).label("promo_types"),
             )
             .join(PromotionPacket, ListingPromotion.packet_id == PromotionPacket.id)
             .where(
@@ -230,47 +232,100 @@ class ListingsRepository(BaseRepository):
             .group_by(ListingPromotion.listing_id)
             .subquery()
         )
-        rank_expr = func.coalesce(promotion_info.c.rank, 0)
+        rank_expr = func.coalesce(rank_info.c.rank, 0)
+        effective_price = self._effective_price_expression()
 
-        if (
-            cursor_rank is not None
-            and cursor_created_at is not None
-            and cursor_id is not None
-        ):
-            conditions.append(
-                or_(
-                    rank_expr < cursor_rank,
-                    and_(
-                        rank_expr == cursor_rank, Listing.created_at < cursor_created_at
-                    ),
-                    and_(
-                        rank_expr == cursor_rank,
-                        Listing.created_at == cursor_created_at,
-                        Listing.id < cursor_id,
-                    ),
+        if sort_by in (SortBy.RECOMMENDED, SortBy.NEWEST):
+            if (
+                cursor_rank is not None
+                and cursor_created_at is not None
+                and cursor_id is not None
+            ):
+                conditions.append(
+                    or_(
+                        rank_expr < cursor_rank,
+                        and_(
+                            rank_expr == cursor_rank,
+                            Listing.created_at < cursor_created_at,
+                        ),
+                        and_(
+                            rank_expr == cursor_rank,
+                            Listing.created_at == cursor_created_at,
+                            Listing.id < cursor_id,
+                        ),
+                    )
                 )
-            )
+            order_by = [rank_expr.desc(), Listing.created_at.desc(), Listing.id.desc()]
+        elif sort_by == SortBy.PRICE_ASC:
+            if (
+                cursor_rank is not None
+                and cursor_price is not None
+                and cursor_id is not None
+            ):
+                conditions.append(
+                    or_(
+                        rank_expr < cursor_rank,
+                        and_(rank_expr == cursor_rank, effective_price > cursor_price),
+                        and_(
+                            rank_expr == cursor_rank,
+                            effective_price == cursor_price,
+                            Listing.id > cursor_id,
+                        ),
+                    )
+                )
+            order_by = [rank_expr.desc(), effective_price.asc(), Listing.id.asc()]
+        else:  # PRICE_DESC
+            if (
+                cursor_rank is not None
+                and cursor_price is not None
+                and cursor_id is not None
+            ):
+                conditions.append(
+                    or_(
+                        rank_expr < cursor_rank,
+                        and_(rank_expr == cursor_rank, effective_price < cursor_price),
+                        and_(
+                            rank_expr == cursor_rank,
+                            effective_price == cursor_price,
+                            Listing.id < cursor_id,
+                        ),
+                    )
+                )
+            order_by = [rank_expr.desc(), effective_price.desc(), Listing.id.desc()]
 
         stmt = (
-            select(
-                Listing,
-                rank_expr.label("rank"),
-                promotion_info.c.promo_types,
-            )
-            .outerjoin(promotion_info, promotion_info.c.listing_id == Listing.id)
+            select(Listing, rank_expr.label("rank"))
+            .outerjoin(rank_info, rank_info.c.listing_id == Listing.id)
             .where(*conditions)
             .options(*self._response_read_options())
-            .order_by(rank_expr.desc(), Listing.created_at.desc(), Listing.id.desc())
+            .order_by(*order_by)
             .limit(limit)
         )
         rows = (await self.session.execute(stmt)).unique().all()
+        if not rows:
+            return []
+
+        listing_ids = [listing.id for listing, _ in rows]
+        promo_type_rows = await self.session.execute(
+            select(ListingPromotion.listing_id, PromotionPacket.type)
+            .join(PromotionPacket, ListingPromotion.packet_id == PromotionPacket.id)
+            .where(
+                ListingPromotion.listing_id.in_(listing_ids),
+                ListingPromotion.status == PromotionStatus.ACTIVE,
+                ListingPromotion.expires_at > func.now(),
+            )
+        )
+        promos_by_listing: dict[UUID, list[PromotionType]] = defaultdict(list)
+        for lid, promo_type in promo_type_rows:
+            promos_by_listing[lid].append(PromotionType(promo_type))
+
         return [
             ListingWithPromotions(
                 listing=listing,
-                active_promotions=[PromotionType(t) for t in (promo_types or [])],
+                active_promotions=promos_by_listing[listing.id],
                 promotion_rank=int(rank),
             )
-            for listing, rank, promo_types in rows
+            for listing, rank in rows
         ]
 
     async def search_all_with_owner_stats(

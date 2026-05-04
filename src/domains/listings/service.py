@@ -1,3 +1,4 @@
+import datetime
 from uuid import UUID
 
 from src.core.database.repositories import Repositories
@@ -7,12 +8,14 @@ from src.core.utils.pagination import (
     encode_cursor,
     decode_ranked_cursor,
     encode_ranked_cursor,
+    decode_ranked_price_cursor,
+    encode_ranked_price_cursor,
 )
 from src.domains.categories.service import CategoriesService
 from src.domains.filter_definitions.service import FilterDefinitionsService
 from src.domains.users.models import User
 from .consts import SPONSORED_LISTINGS_LIMIT
-from .enums import ListingStatus
+from .enums import ListingStatus, SortBy
 from .exceptions import ListingNotFoundError
 from .models import Listing
 from .repository import ListingsRepository, OwnerDashboardStats, ListingWithPromotions
@@ -115,11 +118,24 @@ class ListingsService:
         is_tradable: bool | None = None,
         custom_filters: dict | None = None,
         limit: int = 20,
+        sort_by: SortBy = SortBy.RECOMMENDED,
         cursor: str | None = None,
     ) -> ListListingsResponse:
-        cursor_rank, cursor_created_at, cursor_id = (
-            decode_ranked_cursor(cursor) if cursor else (None, None, None)
-        )
+        is_price_sort = sort_by in (SortBy.PRICE_ASC, SortBy.PRICE_DESC)
+
+        cursor_rank: int | None = None
+        cursor_created_at: datetime.datetime | None = None
+        cursor_price: int | None = None
+        cursor_id: UUID | None = None
+
+        if cursor:
+            if is_price_sort:
+                cursor_rank, cursor_price, cursor_id = decode_ranked_price_cursor(
+                    cursor
+                )
+            else:
+                cursor_rank, cursor_created_at, cursor_id = decode_ranked_cursor(cursor)
+
         results: list[ListingWithPromotions] = await self.listings_repo.search_all(
             user_id=user_id,
             status=status,
@@ -131,19 +147,26 @@ class ListingsService:
             is_tradable=is_tradable,
             custom_filters=custom_filters,
             limit=limit,
+            sort_by=sort_by,
             cursor_rank=cursor_rank,
             cursor_created_at=cursor_created_at,
+            cursor_price=cursor_price,
             cursor_id=cursor_id,
         )
-        next_cursor = (
-            encode_ranked_cursor(
-                results[-1].promotion_rank,
-                results[-1].listing.created_at,
-                results[-1].listing.id,
-            )
-            if len(results) == limit
-            else None
-        )
+
+        if len(results) == limit:
+            last = results[-1]
+            if is_price_sort:
+                effective_price = 0 if last.listing.is_free else last.listing.price
+                next_cursor = encode_ranked_price_cursor(
+                    last.promotion_rank, effective_price, last.listing.id
+                )
+            else:
+                next_cursor = encode_ranked_cursor(
+                    last.promotion_rank, last.listing.created_at, last.listing.id
+                )
+        else:
+            next_cursor = None
 
         sponsored: list[Listing] | None = None
         if (

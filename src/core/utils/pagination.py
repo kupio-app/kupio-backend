@@ -88,6 +88,29 @@ def encode_int_cursor(created_at: datetime.datetime, _id: int) -> str:
     return base64.urlsafe_b64encode(json.dumps(data).encode()).decode()
 
 
+def encode_ranked_price_cursor(rank: int, price: int, _id: UUID) -> str:
+    data = {"rank": rank, "price": price, "id": str(_id)}
+    return base64.urlsafe_b64encode(json.dumps(data).encode()).decode()
+
+
+def decode_ranked_price_cursor(
+    cursor: str,
+) -> tuple[int | None, int | None, UUID | None]:
+    try:
+        data = json.loads(base64.urlsafe_b64decode(cursor))
+    except TypeError, ValueError, binascii.Error:
+        return None, None, None
+    if "rank" not in data or "price" not in data or "id" not in data:
+        return None, None, None
+    try:
+        rank = int(data["rank"])
+        price = int(data["price"])
+        cursor_id = UUID(data["id"])
+    except TypeError, ValueError:
+        return None, None, None
+    return rank, price, cursor_id
+
+
 def encode_ranked_cursor(rank: int, created_at: datetime.datetime, _id: UUID) -> str:
     data = {"rank": rank, "created_at": created_at.isoformat(), "id": str(_id)}
     return base64.urlsafe_b64encode(json.dumps(data).encode()).decode()
