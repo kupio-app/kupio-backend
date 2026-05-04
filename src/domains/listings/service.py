@@ -188,7 +188,9 @@ class ListingsService:
                     update={"active_promotions": [PromotionType.VIP]}
                 )
                 for x in sponsored
-            ],
+            ]
+            if sponsored is not None
+            else None,
             next_cursor=next_cursor,
         )
 
