@@ -11,6 +11,7 @@ from src.core.utils.pagination import (
 from src.domains.categories.service import CategoriesService
 from src.domains.filter_definitions.service import FilterDefinitionsService
 from src.domains.users.models import User
+from .consts import SPONSORED_LISTINGS_LIMIT
 from .enums import ListingStatus
 from .exceptions import ListingNotFoundError
 from .models import Listing
@@ -23,6 +24,7 @@ from .schemas import (
     ListingResponse,
     OwnerListingResponse,
 )
+from ..promotions.enums import PromotionType
 
 
 class ListingsService:
@@ -143,12 +145,26 @@ class ListingsService:
             else None
         )
 
+        sponsored: list[Listing] | None = None
+        if (
+            category_id is not None and cursor is None
+        ):  # Populated only on the first page
+            sponsored = await self.listings_repo.get_sponsored(
+                category_id, limit=SPONSORED_LISTINGS_LIMIT
+            )
+
         return ListListingsResponse(
             listings=[
                 ListingResponse.model_validate(r.listing).model_copy(
                     update={"active_promotions": r.active_promotions}
                 )
                 for r in results
+            ],
+            sponsored=[
+                ListingResponse.model_validate(x).model_copy(
+                    update={"active_promotions": [PromotionType.VIP]}
+                )
+                for x in sponsored
             ],
             next_cursor=next_cursor,
         )

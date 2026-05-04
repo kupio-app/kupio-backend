@@ -433,6 +433,27 @@ class ListingsRepository(BaseRepository):
             favourites_count=int(row.favourites_count),
         )
 
+    async def get_sponsored(
+        self, category_id: int | None, *, limit: int = 20
+    ) -> list[Listing]:
+        stmt = (
+            select(Listing)
+            .join(ListingPromotion, ListingPromotion.listing_id == Listing.id)
+            .join(PromotionPacket, ListingPromotion.packet_id == PromotionPacket.id)
+            .where(
+                Listing.deleted_at.is_(None),
+                Listing.status == ListingStatus.ACTIVE,
+                Listing.category_id == category_id,
+                ListingPromotion.status == PromotionStatus.ACTIVE,
+                ListingPromotion.expires_at > func.now(),
+                PromotionPacket.type == PromotionType.VIP,
+            )
+            .options(*self._response_read_options())
+            .order_by(ListingPromotion.starts_at.desc())
+            .limit(limit)
+        )
+        return list((await self.session.scalars(stmt)).unique())
+
     async def update_by_id(self, listing_id: UUID, **kwargs) -> Listing | None:
         await self._update(
             Listing, [Listing.id == listing_id], load_result=False, **kwargs

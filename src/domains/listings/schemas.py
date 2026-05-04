@@ -43,6 +43,9 @@ class ListingDetailResponse(ListingResponse):
 
 class ListListingsResponse(BaseModel):
     listings: list[ListingResponse]
+    sponsored: list[ListingResponse] = Field(
+        None
+    )  # Reserved for VIP listings, None - if not enough filters(category_id in that case)
     next_cursor: str | None
 
 
