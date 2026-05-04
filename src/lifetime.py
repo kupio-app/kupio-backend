@@ -8,6 +8,7 @@ from src.core.factories.firebase import init_firebase, shutdown_firebase
 from src.core.factories.redis import init_redis, shutdown_redis
 from src.core.factories.stripe import init_stripe
 from src.core.factories.s3 import init_s3, shutdown_s3
+from src.worker import worker
 
 
 @asynccontextmanager
@@ -20,10 +21,11 @@ async def lifespan(app: FastAPI):
     init_s3(app, config)
     init_firebase(app, config)
 
-    try:
-        yield
-    finally:
-        await shutdown_db(app)
-        await shutdown_redis(app)
-        await shutdown_s3(app)
-        shutdown_firebase(app)
+    async with worker:
+        try:
+            yield
+        finally:
+            await shutdown_db(app)
+            await shutdown_redis(app)
+            await shutdown_s3(app)
+            shutdown_firebase(app)
