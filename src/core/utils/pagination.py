@@ -86,3 +86,28 @@ def decode_int_cursor(cursor: str) -> tuple[datetime.datetime | None, int | None
 def encode_int_cursor(created_at: datetime.datetime, _id: int) -> str:
     data = {"created_at": created_at.isoformat(), "id": _id}
     return base64.urlsafe_b64encode(json.dumps(data).encode()).decode()
+
+
+def encode_ranked_cursor(rank: int, created_at: datetime.datetime, _id: UUID) -> str:
+    data = {"rank": rank, "created_at": created_at.isoformat(), "id": str(_id)}
+    return base64.urlsafe_b64encode(json.dumps(data).encode()).decode()
+
+
+def decode_ranked_cursor(
+    cursor: str,
+) -> tuple[int | None, datetime.datetime | None, UUID | None]:
+    data = _decode_cursor_payload(cursor)
+    if data is None or "rank" not in data:
+        return None, None, None
+    try:
+        rank = int(data["rank"])
+    except TypeError, ValueError:
+        return None, None, None
+    created_at = _normalize_cursor_datetime(data["created_at"])
+    if created_at is None:
+        return None, None, None
+    try:
+        cursor_id = UUID(data["id"])
+    except TypeError, ValueError:
+        return None, None, None
+    return rank, created_at, cursor_id
