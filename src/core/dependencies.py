@@ -58,7 +58,7 @@ async def get_current_user(
     config = get_config()
 
     try:
-        user_id = decode_access_token(token=token, config=config.auth)
+        user_id, _ = decode_access_token(token=token, config=config.auth)
     except Exception as exc:  # pragma: no cover
         raise InvalidTokenError() from exc
 
@@ -70,6 +70,17 @@ async def get_current_user(
         raise InvalidTokenError()
 
     return user
+
+
+async def get_current_device_id(
+    token: str = Depends(oauth2_scheme),
+) -> str | None:
+    config = get_config()
+    try:
+        _, device_id = decode_access_token(token=token, config=config.auth)
+    except Exception:  # pragma: no cover
+        return None
+    return device_id
 
 
 async def get_current_user_or_none(

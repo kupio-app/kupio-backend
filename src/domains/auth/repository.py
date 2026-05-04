@@ -104,8 +104,11 @@ class SessionsRepository(BaseRepository):
             is_revoked=True,
         )
 
+    async def get_by_token_hash(self, token_hash: str) -> Session | None:
+        return await self._get(Session, Session.token_hash == token_hash)
+
     async def revoke_by_token_hash(self, token_hash: str) -> bool:
-        session = await self._get(Session, Session.token_hash == token_hash)
+        session = await self.get_by_token_hash(token_hash)
         if session is None or session.is_revoked:
             return False
 

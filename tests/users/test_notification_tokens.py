@@ -21,6 +21,7 @@ async def _sqlite_upsert(
     user_id: uuid.UUID,
     token: str,
     platform,
+    device_id: str | None = None,
 ) -> NotificationToken:
     now = datetime.datetime.now(datetime.UTC)
     existing = await self.session.scalar(
@@ -40,6 +41,7 @@ async def _sqlite_upsert(
         token=token,
         platform=platform,
         last_seen_at=now,
+        device_id=device_id,
     )
 
 

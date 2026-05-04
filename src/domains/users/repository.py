@@ -105,7 +105,12 @@ class UsersRepository(BaseRepository):
 
 class NotificationTokensRepository(BaseRepository):
     async def upsert(
-        self, *, user_id: uuid.UUID, token: str, platform: DevicePlatform
+        self,
+        *,
+        user_id: uuid.UUID,
+        token: str,
+        platform: DevicePlatform,
+        device_id: str | None = None,
     ) -> NotificationToken:
         now = datetime.datetime.now(datetime.UTC)
         stmt = (
@@ -114,11 +119,12 @@ class NotificationTokensRepository(BaseRepository):
                 user_id=user_id,
                 token=token,
                 platform=platform,
+                device_id=device_id,
                 last_seen_at=now,
             )
             .on_conflict_do_update(
                 constraint="uq_notification_token_user_platform_token",
-                set_={"last_seen_at": now},
+                set_={"device_id": device_id, "last_seen_at": now},
             )
             .returning(NotificationToken)
         )
@@ -141,6 +147,15 @@ class NotificationTokensRepository(BaseRepository):
 
     async def delete_by_id(self, token_id: uuid.UUID) -> None:
         await self._delete(NotificationToken, NotificationToken.id == token_id)
+
+    async def delete_by_user_and_device(
+        self, *, user_id: uuid.UUID, device_id: str
+    ) -> None:
+        await self._delete(
+            NotificationToken,
+            NotificationToken.user_id == user_id,
+            NotificationToken.device_id == device_id,
+        )
 
 
 class ModeratorsRepository(BaseRepository):

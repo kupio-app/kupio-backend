@@ -87,10 +87,13 @@ class NotificationTokenService:
         self,
         current_user: User,
         req: users_schemas.RegisterNotificationTokenRequest,
+        *,
+        device_id: str | None = None,
     ) -> NotificationToken:
         async with self.uow:
             return await self.notification_tokens_repo.upsert(
                 user_id=current_user.id,
                 token=req.token,
                 platform=req.platform,
+                device_id=device_id,
             )

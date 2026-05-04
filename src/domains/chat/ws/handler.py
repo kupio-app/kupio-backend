@@ -97,7 +97,7 @@ class ChatWebSocketSession:
     async def _decode_token(self, token: str) -> UUID | None:
         config = get_config()
         try:
-            user_id_str = decode_access_token(token=token, config=config.auth)
+            user_id_str, _ = decode_access_token(token=token, config=config.auth)
             return UUID(user_id_str)
         except ExpiredSignatureError:
             await self._close_with_error(WsErrorMessage(code="token_expired"), 4001)

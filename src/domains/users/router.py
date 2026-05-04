@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status, Query
 
-from src.core.dependencies import get_current_user
+from src.core.dependencies import get_current_device_id, get_current_user
 from src.core.utils.pagination import PaginationParams
 from src.domains.listings.dependencies import get_listings_service
 from src.domains.listings.enums import ListingStatus
@@ -102,9 +102,10 @@ async def get_my_listings(
 async def register_notification_token(
     payload: RegisterNotificationTokenRequest,
     current_user: User = Depends(get_current_user),
+    device_id: str | None = Depends(get_current_device_id),
     service: NotificationTokenService = Depends(get_notification_token_service),
 ):
-    return await service.register_token(current_user, payload)
+    return await service.register_token(current_user, payload, device_id=device_id)
 
 
 @router.get("/{username}", response_model=UserPublic)

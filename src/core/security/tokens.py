@@ -23,7 +23,9 @@ def generate_refresh_token(config: AuthConfig) -> tuple[str, datetime]:
     return secrets.token_urlsafe(64), expires_at
 
 
-def create_access_token(user_id: str, config: AuthConfig) -> tuple[str, str, int]:
+def create_access_token(
+    user_id: str, config: AuthConfig, device_id: str | None = None
+) -> tuple[str, str, int]:
     """
     Create JWT access token with user_id and expiration
 
@@ -32,12 +34,15 @@ def create_access_token(user_id: str, config: AuthConfig) -> tuple[str, str, int
     expires_at = datetime.now(UTC) + timedelta(minutes=config.access_ttl)
     expires_at = int(expires_at.timestamp())
     jti = str(uuid4())
+    claims: dict = {
+        "sub": user_id,
+        "exp": expires_at,
+        "jti": jti,  # For blacklisting if needed in future
+    }
+    if device_id is not None:
+        claims["did"] = device_id
     token = jwt.encode(
-        {
-            "sub": user_id,
-            "exp": expires_at,
-            "jti": jti,  # For blacklisting if needed in future
-        },
+        claims,
         config.jwt_secret.get_secret_value(),
         algorithm=config.jwt_algorithm,
     )
@@ -45,11 +50,11 @@ def create_access_token(user_id: str, config: AuthConfig) -> tuple[str, str, int
     return token, jti, expires_at
 
 
-def decode_access_token(token: str, config: AuthConfig) -> str:
+def decode_access_token(token: str, config: AuthConfig) -> tuple[str, str | None]:
     """
-    Return user_id from token or raise if invalid/expired
+    Return (user_id, device_id) from token or raise if invalid/expired
 
-    :return user_id: str
+    :return: (user_id, device_id)
     :raises: jwt.ExpiredSignatureError, jwt.JWTError
     """
     payload = jwt.decode(
@@ -58,4 +63,4 @@ def decode_access_token(token: str, config: AuthConfig) -> str:
         algorithms=[config.jwt_algorithm],
         options={"verify_exp": not config.not_validate_exp},
     )
-    return payload["sub"]
+    return payload["sub"], payload.get("did")

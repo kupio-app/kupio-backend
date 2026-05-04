@@ -13,7 +13,7 @@ from src.core.security import (
     verify_password,
 )
 from src.domains.users.models import User
-from src.domains.users.repository import UsersRepository
+from src.domains.users.repository import NotificationTokensRepository, UsersRepository
 
 from .exceptions import (
     EmailAlreadyTakenError,
@@ -48,6 +48,9 @@ class AuthService:
         self.users_repo: UsersRepository = repos.users
         self.sessions: SessionsRepository = repos.sessions
         self.oauth_identities: OAuthIdentitiesRepository = repos.oauth_identities
+        self.notification_tokens: NotificationTokensRepository = (
+            repos.notification_tokens
+        )
         self.uow = uow
         self.config = get_config().auth
 
@@ -109,7 +112,13 @@ class AuthService:
     async def logout(self, refresh_token: str) -> None:
         refresh_hash = hash_refresh_token(refresh_token)
         async with self.uow:
-            await self.sessions.revoke_by_token_hash(refresh_hash)
+            session = await self.sessions.get_by_token_hash(refresh_hash)
+            if session is not None and not session.is_revoked:
+                await self.notification_tokens.delete_by_user_and_device(
+                    user_id=session.user_id,
+                    device_id=session.device_id,
+                )
+                await self.sessions.revoke_by_id(session.id)
 
     async def register(self, payload: RegisterRequest) -> TokensResponse:
         async with self.uow:
@@ -224,6 +233,7 @@ class AuthService:
         access_token, _, access_expires_at = create_access_token(
             user_id=str(user.id),
             config=self.config,
+            device_id=device_id,
         )
         refresh_token, refresh_expires_at = generate_refresh_token(self.config)
 
