@@ -8,6 +8,7 @@ from pydantic_extra_types.phone_numbers import PhoneNumber
 from src.domains.categories.schemas import CategorySlim
 from src.domains.images.schemas import ListingImageResponse
 from src.domains.listings.enums import CurrencyEnum, ListingStatus
+from src.domains.promotions.enums import PromotionType
 
 if TYPE_CHECKING:
     from .repository import OwnerListingStats
@@ -28,6 +29,7 @@ class ListingResponse(BaseModel):
     category: CategorySlim
     custom_filters: dict[str, Any] | None
     images: list[ListingImageResponse] = Field(default_factory=list)
+    active_promotions: list[PromotionType] = Field(default_factory=list)
     created_at: datetime.datetime
     updated_at: datetime.datetime | None
 
@@ -41,6 +43,9 @@ class ListingDetailResponse(ListingResponse):
 
 class ListListingsResponse(BaseModel):
     listings: list[ListingResponse]
+    sponsored: list[ListingResponse] | None = Field(
+        default=None
+    )  # Reserved for VIP listings, None - if not enough filters(category_id in that case)
     next_cursor: str | None
 
 

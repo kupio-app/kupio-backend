@@ -8,6 +8,13 @@ class CurrencyEnum(StrEnum):
     UAH = auto()
 
 
+class SortBy(StrEnum):
+    RECOMMENDED = auto()  # Promoted first, then by newest; same as newest for now
+    NEWEST = auto()  # By creation date descending
+    PRICE_ASC = auto()  # Cheapest first (respects is_free)
+    PRICE_DESC = auto()  # Most expensive first
+
+
 class ListingStatus(StrEnum):
     DRAFT = auto()  # Listing created but not yet submitted (visible only to owner)
     PLANNED = auto()  # Submitted, scheduled for future publication

@@ -5,7 +5,7 @@ class PromotionType(StrEnum):
     TOP = auto()  # Listing appears at the top of search results
     HIGHLIGHT = auto()  # Listing is visually highlighted in results
     URGENT = auto()  # Listing is marked as urgent
-    VIP = auto()  # Listing receives maximum visibility (top + highlight)
+    VIP = auto()  # Listing receives maximum visibility (top + highlight) and periodically appears between results
 
 
 class PromotionStatus(StrEnum):
