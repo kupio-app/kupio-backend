@@ -2,14 +2,19 @@ from uuid import UUID
 
 from src.core.database.repositories import Repositories
 from src.core.database.uow import UoW
-from src.core.utils.pagination import decode_cursor, encode_cursor
+from src.core.utils.pagination import (
+    decode_cursor,
+    encode_cursor,
+    decode_ranked_cursor,
+    encode_ranked_cursor,
+)
 from src.domains.categories.service import CategoriesService
 from src.domains.filter_definitions.service import FilterDefinitionsService
 from src.domains.users.models import User
 from .enums import ListingStatus
 from .exceptions import ListingNotFoundError
 from .models import Listing
-from .repository import ListingsRepository, OwnerDashboardStats
+from .repository import ListingsRepository, OwnerDashboardStats, ListingWithPromotions
 from .schemas import (
     ListListingsResponse,
     ListOwnerListingsResponse,
@@ -110,8 +115,10 @@ class ListingsService:
         limit: int = 20,
         cursor: str | None = None,
     ) -> ListListingsResponse:
-        cursor_created_at, cursor_id = decode_cursor(cursor) if cursor else (None, None)
-        listings: list[Listing] = await self.listings_repo.search_all(
+        cursor_rank, cursor_created_at, cursor_id = (
+            decode_ranked_cursor(cursor) if cursor else (None, None, None)
+        )
+        results: list[ListingWithPromotions] = await self.listings_repo.search_all(
             user_id=user_id,
             status=status,
             q=q,
@@ -122,17 +129,27 @@ class ListingsService:
             is_tradable=is_tradable,
             custom_filters=custom_filters,
             limit=limit,
+            cursor_rank=cursor_rank,
             cursor_created_at=cursor_created_at,
             cursor_id=cursor_id,
         )
         next_cursor = (
-            encode_cursor(listings[-1].created_at, listings[-1].id)
-            if len(listings) == limit
+            encode_ranked_cursor(
+                results[-1].promotion_rank,
+                results[-1].listing.created_at,
+                results[-1].listing.id,
+            )
+            if len(results) == limit
             else None
         )
 
         return ListListingsResponse(
-            listings=[ListingResponse.model_validate(listing) for listing in listings],
+            listings=[
+                ListingResponse.model_validate(r.listing).model_copy(
+                    update={"active_promotions": r.active_promotions}
+                )
+                for r in results
+            ],
             next_cursor=next_cursor,
         )
 
@@ -199,6 +216,11 @@ class ListingsService:
 
         seen_count = await self.repos.listing_views.count_by_listing_id(listing.id)
 
+        active_promotions_data = (
+            await self.repos.listing_promotions.get_active_for_listing(listing.id)
+        )
+        active_promotions = [p.packet.type for p in active_promotions_data]
+
         phone, contact_name = None, None
         if current_user is not None:
             if not listing.is_calls_disabled:
@@ -208,6 +230,7 @@ class ListingsService:
         base = ListingResponse.model_validate(listing)
         return ListingDetailResponse.model_construct(
             **base.model_dump(),
+            active_promotions=active_promotions,
             seen_count=seen_count,
             phone=phone,
             contact_name=contact_name,
