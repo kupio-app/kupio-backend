@@ -19,7 +19,6 @@ class ListingResponse(BaseModel):
 
     id: UUID
     title: str
-    description: str
     price: int
     is_free: bool
     is_tradable: bool
@@ -35,6 +34,7 @@ class ListingResponse(BaseModel):
 
 
 class ListingDetailResponse(ListingResponse):
+    description: str
     seen_count: int
     is_calls_disabled: bool
     phone: str | None
@@ -50,6 +50,7 @@ class ListListingsResponse(BaseModel):
 
 
 class OwnerListingResponse(ListingResponse):
+    description: str
     seen_count: int
     favourites_count: int
     chats_count: int
@@ -63,6 +64,7 @@ class OwnerListingResponse(ListingResponse):
         ).model_dump()
         return cls(
             **listing_data,
+            description=listing_stats.listing.description,
             seen_count=listing_stats.seen_count,
             favourites_count=listing_stats.favourites_count,
             chats_count=listing_stats.chats_count,
