@@ -11,8 +11,8 @@ from src.core.database.base_repository import BaseRepository
 from src.domains.chat.models import Conversation
 from src.domains.favourites.models import ListingFavourite
 from src.domains.images.models import ListingImage
-from src.domains.promotions.enums import PromotionStatus
-from src.domains.promotions.models import ListingPromotion
+from src.domains.promotions.enums import PromotionStatus, PromotionType
+from src.domains.promotions.models import ListingPromotion, PromotionPacket
 from .enums import CurrencyEnum, ListingStatus
 from .models import Listing, ListingView
 
@@ -37,6 +37,13 @@ class OwnerDashboardStats:
     promoted_count: int
     chats_count: int
     favourites_count: int
+
+
+@dataclass(slots=True)
+class ListingWithPromotions:
+    listing: Listing
+    active_promotions: list[PromotionType]
+    promotion_rank: int
 
 
 class ListingsRepository(BaseRepository):
@@ -187,9 +194,10 @@ class ListingsRepository(BaseRepository):
         is_tradable: bool | None = None,
         custom_filters: dict | None = None,
         limit: int = 20,
+        cursor_rank: int | None = None,
         cursor_created_at: datetime.datetime | None = None,
         cursor_id: UUID | None = None,
-    ) -> list[Listing]:
+    ) -> list[ListingWithPromotions]:
         conditions = self._search_conditions(
             user_id=user_id,
             status=status,
@@ -200,18 +208,70 @@ class ListingsRepository(BaseRepository):
             is_free=is_free,
             is_tradable=is_tradable,
             custom_filters=custom_filters,
-            cursor_created_at=cursor_created_at,
-            cursor_id=cursor_id,
         )
 
+        promotion_info = (
+            select(
+                ListingPromotion.listing_id,
+                func.max(
+                    case(
+                        (PromotionPacket.type == PromotionType.VIP, 2),
+                        (PromotionPacket.type == PromotionType.TOP, 1),
+                        else_=0,
+                    )
+                ).label("rank"),
+                func.array_agg(PromotionPacket.type).label("promo_types"),
+            )
+            .join(PromotionPacket, ListingPromotion.packet_id == PromotionPacket.id)
+            .where(
+                ListingPromotion.status == PromotionStatus.ACTIVE,
+                ListingPromotion.expires_at > func.now(),
+            )
+            .group_by(ListingPromotion.listing_id)
+            .subquery()
+        )
+        rank_expr = func.coalesce(promotion_info.c.rank, 0)
+
+        if (
+            cursor_rank is not None
+            and cursor_created_at is not None
+            and cursor_id is not None
+        ):
+            conditions.append(
+                or_(
+                    rank_expr < cursor_rank,
+                    and_(
+                        rank_expr == cursor_rank, Listing.created_at < cursor_created_at
+                    ),
+                    and_(
+                        rank_expr == cursor_rank,
+                        Listing.created_at == cursor_created_at,
+                        Listing.id < cursor_id,
+                    ),
+                )
+            )
+
         stmt = (
-            select(Listing)
+            select(
+                Listing,
+                rank_expr.label("rank"),
+                promotion_info.c.promo_types,
+            )
+            .outerjoin(promotion_info, promotion_info.c.listing_id == Listing.id)
             .where(*conditions)
             .options(*self._response_read_options())
-            .order_by(Listing.created_at.desc(), Listing.id.desc())
+            .order_by(rank_expr.desc(), Listing.created_at.desc(), Listing.id.desc())
             .limit(limit)
         )
-        return list((await self.session.scalars(stmt)).unique())
+        rows = (await self.session.execute(stmt)).unique().all()
+        return [
+            ListingWithPromotions(
+                listing=listing,
+                active_promotions=[PromotionType(t) for t in (promo_types or [])],
+                promotion_rank=int(rank),
+            )
+            for listing, rank, promo_types in rows
+        ]
 
     async def search_all_with_owner_stats(
         self,
