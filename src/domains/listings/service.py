@@ -245,7 +245,7 @@ class ListingsService:
 
         base = ListingResponse.model_validate(listing)
         return ListingDetailResponse.model_construct(
-            **base.model_dump(),
+            **base.model_dump(exclude={"active_promotions"}),
             active_promotions=active_promotions,
             seen_count=seen_count,
             phone=phone,
