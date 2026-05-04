@@ -275,8 +275,6 @@ class ListingsService:
             seen_count=seen_count,
             phone=phone,
             contact_name=contact_name,
-            is_calls_disabled=listing.is_calls_disabled,
-            description=listing.description,
         )
 
     @staticmethod
