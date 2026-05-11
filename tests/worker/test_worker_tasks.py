@@ -91,7 +91,6 @@ class FakeMessaging:
         self.sent.append(message)
 
 
-@pytest.mark.asyncio
 async def test_send_fcm_push_skips_when_no_tokens(monkeypatch: pytest.MonkeyPatch):
     _set_required_env(monkeypatch)
     get_config.cache_clear()
@@ -125,7 +124,6 @@ async def test_send_fcm_push_skips_when_no_tokens(monkeypatch: pytest.MonkeyPatc
     assert session.committed is False
 
 
-@pytest.mark.asyncio
 async def test_send_fcm_push_deletes_unregistered_tokens(
     monkeypatch: pytest.MonkeyPatch,
 ):

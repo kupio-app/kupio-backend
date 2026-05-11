@@ -35,7 +35,6 @@ class FakeSession:
         self.rolled_back = True
 
 
-@pytest.mark.asyncio
 async def test_uow_commit_on_success():
     session = FakeSession()
 
@@ -55,7 +54,6 @@ async def test_uow_commit_on_success():
     assert session.flushed is True
 
 
-@pytest.mark.asyncio
 async def test_uow_rollback_on_error():
     session = FakeSession()
 

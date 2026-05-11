@@ -7,35 +7,25 @@ import src.domains.chat.service as chat_service_module
 from src.domains.categories.models import Category
 from src.domains.chat.dependencies import get_chat_redis
 from src.domains.chat.redis import ChatRedisManager
+from tests.helpers.auth import auth_header, register_user
+from tests.helpers.listings import create_category
 
 
 def _auth_header(token: str) -> dict:
-    return {"Authorization": f"Bearer {token}"}
+    return auth_header(token)
 
 
 async def _register(
     client, *, email: str, username: str, device_id: str = "device"
 ) -> str:
-    resp = await client.post(
-        "/api/auth/register",
-        json={
-            "email": email,
-            "username": username,
-            "password": "strong-password",
-            "device_id": device_id,
-        },
+    data = await register_user(
+        client, email=email, username=username, device_id=device_id
     )
-    assert resp.status_code == 201
-    return resp.json()["access_token"]
+    return data["access_token"]
 
 
 async def _create_category(session_factory, *, name: str) -> Category:
-    async with session_factory() as session:
-        category = Category(name=name, depth=0)
-        session.add(category)
-        await session.commit()
-        await session.refresh(category)
-        return category
+    return await create_category(session_factory, name=name, depth=0)
 
 
 async def _create_listing(client, *, token: str, category_id: int) -> dict:

@@ -4,10 +4,17 @@ from src.domains.categories.models import Category
 from src.domains.reports.models import ReportReason
 from src.domains.users.enums import UserRole
 from src.domains.users.models import Moderator, User
+from tests.helpers.auth import auth_header, register_user
+from tests.helpers.listings import (
+    activate_listing,
+    create_category,
+    create_listing,
+    listing_payload,
+)
 
 
 def _auth_header(token: str) -> dict:
-    return {"Authorization": f"Bearer {token}"}
+    return auth_header(token)
 
 
 async def _register(
@@ -17,17 +24,10 @@ async def _register(
     username: str,
     device_id: str = "device",
 ) -> str:
-    resp = await client.post(
-        "/api/auth/register",
-        json={
-            "email": email,
-            "username": username,
-            "password": "strong-password",
-            "device_id": device_id,
-        },
+    data = await register_user(
+        client, email=email, username=username, device_id=device_id
     )
-    assert resp.status_code == 201
-    return resp.json()["access_token"]
+    return data["access_token"]
 
 
 async def _make_moderator(session_factory, *, username: str) -> None:
@@ -44,43 +44,19 @@ async def _make_moderator(session_factory, *, username: str) -> None:
 
 
 async def _create_category(session_factory, *, name: str = "Electronics") -> Category:
-    async with session_factory() as session:
-        category = Category(name=name, depth=0)
-        session.add(category)
-        await session.commit()
-        await session.refresh(category)
-        return category
+    return await create_category(session_factory, name=name, depth=0)
 
 
 def _listing_payload(*, category_id: int) -> dict:
-    return {
-        "title": "Gaming laptop 2026",
-        "description": "Powerful gaming laptop with RTX graphics card, clean condition, and full accessories included.",
-        "price": 2200,
-        "is_free": False,
-        "is_tradable": False,
-        "currency": "usd",
-        "category_id": category_id,
-    }
+    return listing_payload(category_id=category_id)
 
 
 async def _create_listing(client, *, token: str, category_id: int) -> dict:
-    resp = await client.post(
-        "/api/listings",
-        headers=_auth_header(token),
-        json=_listing_payload(category_id=category_id),
-    )
-    assert resp.status_code == 200
-    return resp.json()
+    return await create_listing(client, token=token, category_id=category_id)
 
 
 async def _activate_listing(client, *, token: str, listing_id: str) -> None:
-    resp = await client.put(
-        f"/api/listings/{listing_id}/status",
-        headers=_auth_header(token),
-        json={"status": "active"},
-    )
-    assert resp.status_code == 200
+    await activate_listing(client, token=token, listing_id=listing_id)
 
 
 async def _create_reason(

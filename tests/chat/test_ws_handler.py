@@ -2,7 +2,6 @@ import json
 from types import SimpleNamespace
 from uuid import uuid4
 
-import pytest
 from fastapi import WebSocketDisconnect
 
 from src.domains.chat.ws.handler import ChatWebSocketSession
@@ -27,7 +26,6 @@ class DummyWebSocket:
         self.closed = code
 
 
-@pytest.mark.asyncio
 async def test_receive_token_invalid_payload_closes():
     ws = DummyWebSocket([json.dumps({"type": "auth", "token": ""})])
     session = ChatWebSocketSession(ws, uuid4(), None)
@@ -45,7 +43,6 @@ async def test_receive_token_invalid_payload_closes():
     assert errors["code"] == 4001
 
 
-@pytest.mark.asyncio
 async def test_receive_token_invalid_json_closes():
     ws = DummyWebSocket(["{bad-json"])
     session = ChatWebSocketSession(ws, uuid4(), None)
@@ -63,7 +60,6 @@ async def test_receive_token_invalid_json_closes():
     assert errors["code"] == 4001
 
 
-@pytest.mark.asyncio
 async def test_receive_token_disconnect_returns_none():
     ws = DummyWebSocket([])
     session = ChatWebSocketSession(ws, uuid4(), None)
@@ -73,7 +69,6 @@ async def test_receive_token_disconnect_returns_none():
     assert token is None
 
 
-@pytest.mark.asyncio
 async def test_maybe_mark_read_skips_bad_json():
     ws = DummyWebSocket([])
     session = ChatWebSocketSession(ws, uuid4(), None)
@@ -91,7 +86,6 @@ async def test_maybe_mark_read_skips_bad_json():
     assert called["count"] == 0
 
 
-@pytest.mark.asyncio
 async def test_maybe_mark_read_marks_when_other_user_message():
     ws = DummyWebSocket([])
     session = ChatWebSocketSession(ws, uuid4(), None)
@@ -112,7 +106,6 @@ async def test_maybe_mark_read_marks_when_other_user_message():
     assert called["count"] == 1
 
 
-@pytest.mark.asyncio
 async def test_maybe_mark_read_skips_own_message():
     ws = DummyWebSocket([])
     session = ChatWebSocketSession(ws, uuid4(), None)
@@ -133,7 +126,6 @@ async def test_maybe_mark_read_skips_own_message():
     assert called["count"] == 0
 
 
-@pytest.mark.asyncio
 async def test_receive_client_messages_handles_ping_and_typing(monkeypatch):
     ws = DummyWebSocket([json.dumps({"type": "ping"}), json.dumps({"type": "typing"})])
     session = ChatWebSocketSession(ws, uuid4(), None)

@@ -13,6 +13,7 @@ from sqlalchemy import select
 
 from src.domains.users.models import NotificationToken
 from src.domains.users.repository import NotificationTokensRepository
+from tests.helpers.auth import auth_header, register_user
 
 
 async def _sqlite_upsert(
@@ -51,23 +52,16 @@ async def patch_notification_token_upsert(monkeypatch):
 
 
 def _auth_header(token: str) -> dict:
-    return {"Authorization": f"Bearer {token}"}
+    return auth_header(token)
 
 
 async def _register(
     client, *, email: str, username: str, device_id: str = "device"
 ) -> str:
-    resp = await client.post(
-        "/api/auth/register",
-        json={
-            "email": email,
-            "username": username,
-            "password": "strong-password",
-            "device_id": device_id,
-        },
+    data = await register_user(
+        client, email=email, username=username, device_id=device_id
     )
-    assert resp.status_code == 201
-    return resp.json()["access_token"]
+    return data["access_token"]
 
 
 async def test_register_notification_token_returns_201(client):

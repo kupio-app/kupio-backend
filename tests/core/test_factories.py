@@ -9,14 +9,7 @@ from src.core.factories import firebase as fb_factory
 from src.core.factories import redis as redis_factory
 from src.core.factories import s3 as s3_factory
 from src.core.factories import stripe as stripe_factory
-
-
-class FakeSecret:
-    def __init__(self, value: str) -> None:
-        self._value = value
-
-    def get_secret_value(self) -> str:
-        return self._value
+from tests.helpers.fakes import FakeSecret
 
 
 class FakePostgres:
@@ -65,7 +58,6 @@ class FakeConfig:
         self.firebase = FakeFirebase("/tmp/creds.json", "project")
 
 
-@pytest.mark.asyncio
 async def test_init_and_shutdown_db(monkeypatch: pytest.MonkeyPatch):
     app = FastAPI()
     config = FakeConfig()
@@ -129,7 +121,6 @@ def test_init_and_shutdown_firebase(monkeypatch: pytest.MonkeyPatch):
     assert deleted["app"] == "fb_app"
 
 
-@pytest.mark.asyncio
 async def test_init_and_shutdown_redis(monkeypatch: pytest.MonkeyPatch):
     app = FastAPI()
     config = FakeConfig()
@@ -152,7 +143,6 @@ async def test_init_and_shutdown_redis(monkeypatch: pytest.MonkeyPatch):
     await redis_factory.shutdown_redis(app)
 
 
-@pytest.mark.asyncio
 async def test_init_and_shutdown_s3(monkeypatch: pytest.MonkeyPatch):
     app = FastAPI()
     config = FakeConfig()

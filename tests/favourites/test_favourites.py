@@ -11,28 +11,22 @@ from src.domains.categories.models import Category
 from src.domains.favourites.exceptions import ListingAlreadyFavouritedError
 from src.domains.favourites.models import ListingFavourite
 from src.domains.favourites.service import FavouritesService
+from tests.helpers.auth import auth_header, register_user
 
 _cat_id = itertools.count(1)
 
 
 def _auth_header(token: str) -> dict:
-    return {"Authorization": f"Bearer {token}"}
+    return auth_header(token)
 
 
 async def _register(
     client, *, email: str, username: str, device_id: str = "device"
 ) -> str:
-    resp = await client.post(
-        "/api/auth/register",
-        json={
-            "email": email,
-            "username": username,
-            "password": "strong-password",
-            "device_id": device_id,
-        },
+    data = await register_user(
+        client, email=email, username=username, device_id=device_id
     )
-    assert resp.status_code == 201
-    return resp.json()["access_token"]
+    return data["access_token"]
 
 
 async def _get_current_user_id(client, *, token: str) -> uuid.UUID:

@@ -8,31 +8,23 @@ import itertools
 import uuid
 
 from src.domains.categories.models import Category
+from tests.helpers.auth import auth_header, login_user, register_user
+from tests.helpers.listings import create_category
 
 _cat_id = itertools.count(1)
 from src.domains.users.enums import UserRole
 from src.domains.users.models import User
 
 
-# ── helpers ───────────────────────────────────────────────────────────────────
-
-
 def _auth_header(token: str) -> dict:
-    return {"Authorization": f"Bearer {token}"}
+    return auth_header(token)
 
 
 async def _register(client, *, email: str, username: str) -> str:
-    resp = await client.post(
-        "/api/auth/register",
-        json={
-            "email": email,
-            "username": username,
-            "password": "strong-password",
-            "device_id": "device",
-        },
+    data = await register_user(
+        client, email=email, username=username, device_id="device"
     )
-    assert resp.status_code == 201
-    return resp.json()["access_token"]
+    return data["access_token"]
 
 
 async def _create_moderator(session_factory) -> None:
@@ -51,21 +43,14 @@ async def _create_moderator(session_factory) -> None:
 
 
 async def _login(client, *, email: str) -> str:
-    resp = await client.post(
-        "/api/auth/login",
-        json={"email": email, "password": "strong-password", "device_id": "device"},
-    )
-    assert resp.status_code == 200
-    return resp.json()["access_token"]
+    data = await login_user(client, email=email, device_id="device")
+    return data["access_token"]
 
 
 async def _create_category(session_factory, *, name: str = "Electronics") -> Category:
-    async with session_factory() as session:
-        category = Category(id=next(_cat_id), name=name, depth=0)
-        session.add(category)
-        await session.commit()
-        await session.refresh(category)
-        return category
+    return await create_category(
+        session_factory, name=name, depth=0, category_id=next(_cat_id)
+    )
 
 
 async def _create_filter_definition(
@@ -93,9 +78,6 @@ def _listing_payload(*, category_id: int, custom_filters: dict | None = None) ->
     if custom_filters is not None:
         payload["custom_filters"] = custom_filters
     return payload
-
-
-# ── tests ─────────────────────────────────────────────────────────────────────
 
 
 async def test_create_listing_with_valid_custom_filters(client, session_factory):

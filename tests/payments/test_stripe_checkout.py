@@ -3,24 +3,16 @@ from sqlalchemy import select
 from src.domains.payments.enums import PaymentSessionStatus, TransactionType
 from src.domains.payments.models import BalanceTransaction, PaymentSession
 from src.domains.users.models import User
+from tests.helpers.auth import auth_header, register_user
 
 
 def _auth_header(token: str) -> dict:
-    return {"Authorization": f"Bearer {token}"}
+    return auth_header(token)
 
 
 async def _register(client, *, email: str, username: str) -> str:
-    resp = await client.post(
-        "/api/auth/register",
-        json={
-            "email": email,
-            "username": username,
-            "password": "strong-password",
-            "device_id": "device",
-        },
-    )
-    assert resp.status_code == 201
-    return resp.json()["access_token"]
+    data = await register_user(client, email=email, username=username)
+    return data["access_token"]
 
 
 async def test_create_checkout_session_returns_checkout_url(client, session_factory):

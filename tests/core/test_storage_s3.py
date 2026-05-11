@@ -1,21 +1,7 @@
 from io import BytesIO
 
 from src.core.storage.s3 import S3StorageService
-
-
-class FakeSecret:
-    def __init__(self, value: str) -> None:
-        self._value = value
-
-    def get_secret_value(self) -> str:
-        return self._value
-
-
-class FakeConfig:
-    bucket = "bucket"
-    region = "region"
-    access_key_id = "access"
-    secret_access_key = FakeSecret("secret")
+from tests.helpers.fakes import FakeS3Config
 
 
 class FakeBody:
@@ -55,7 +41,7 @@ def test_s3_storage_service_roundtrip(monkeypatch):
         "src.core.storage.s3.boto3.client", lambda *args, **kwargs: fake_client
     )
 
-    service = S3StorageService(FakeConfig())
+    service = S3StorageService(FakeS3Config())
 
     service.upload_file(BytesIO(b"file"), "key", "text/plain")
     service.delete_object("key")

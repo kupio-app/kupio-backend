@@ -1,8 +1,6 @@
 from types import SimpleNamespace
 from uuid import uuid4
 
-import pytest
-
 from src.domains.chat.redis import ChatRedisManager
 
 
@@ -30,7 +28,6 @@ class FakeRedis:
         return SimpleNamespace()
 
 
-@pytest.mark.asyncio
 async def test_chat_redis_manager_presence_and_publish():
     redis = FakeRedis()
     manager = ChatRedisManager(redis)

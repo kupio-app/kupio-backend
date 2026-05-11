@@ -6,7 +6,6 @@ import src.core.security.google as google_security
 from src.domains.auth.exceptions import InvalidGoogleTokenError
 
 
-@pytest.mark.asyncio
 async def test_verify_google_id_token_uses_cached_jwk(monkeypatch):
     cache = google_security._GoogleJwksCache()
     monkeypatch.setattr(google_security, "_jwks_cache", cache)
@@ -41,7 +40,6 @@ async def test_verify_google_id_token_uses_cached_jwk(monkeypatch):
     assert fetch_mock.await_count == 1
 
 
-@pytest.mark.asyncio
 async def test_verify_google_id_token_disables_at_hash_verification(monkeypatch):
     cache = google_security._GoogleJwksCache()
     monkeypatch.setattr(google_security, "_jwks_cache", cache)
@@ -82,7 +80,6 @@ async def test_verify_google_id_token_disables_at_hash_verification(monkeypatch)
     assert claims["email"] == "user@example.com"
 
 
-@pytest.mark.asyncio
 async def test_verify_google_id_token_rejects_unknown_audience(monkeypatch):
     cache = google_security._GoogleJwksCache()
     monkeypatch.setattr(google_security, "_jwks_cache", cache)
@@ -117,7 +114,6 @@ async def test_verify_google_id_token_rejects_unknown_audience(monkeypatch):
         await google_security.verify_google_id_token("token-1", client_ids=["client-1"])
 
 
-@pytest.mark.asyncio
 async def test_verify_google_id_token_rejects_non_rs256_header(monkeypatch):
     monkeypatch.setattr(
         google_security.jwt,
@@ -129,7 +125,6 @@ async def test_verify_google_id_token_rejects_non_rs256_header(monkeypatch):
         await google_security.verify_google_id_token("token-1", client_ids=["client-1"])
 
 
-@pytest.mark.asyncio
 async def test_fetch_google_jwks_wraps_transport_failures(monkeypatch):
     class FakeResponse:
         status = 200
