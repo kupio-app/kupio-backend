@@ -1,9 +1,6 @@
 from src.domains.categories.models import Category
 
 
-# ── helpers ───────────────────────────────────────────────────────────────────
-
-
 async def _create_category(
     session_factory,
     *,
@@ -17,9 +14,6 @@ async def _create_category(
         await session.commit()
         await session.refresh(category)
         return category
-
-
-# ── GET /api/categories ───────────────────────────────────────────────────────
 
 
 async def test_get_categories_returns_all(client, session_factory):

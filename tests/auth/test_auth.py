@@ -2,18 +2,10 @@ import uuid
 
 import src.domains.auth.service as auth_service
 
+from tests.helpers.auth import auth_header, register_payload
 
-def _auth_header(access_token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {access_token}"}
-
-
-def _register_payload(*, email: str, username: str, device_id: str) -> dict[str, str]:
-    return {
-        "email": email,
-        "username": username,
-        "password": "strong-password",
-        "device_id": device_id,
-    }
+_auth_header = auth_header
+_register_payload = register_payload
 
 
 def _google_claims(

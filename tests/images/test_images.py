@@ -4,47 +4,29 @@ from sqlalchemy import select
 
 from src.domains.categories.models import Category
 from src.domains.images.models import ListingImage
+from tests.helpers.auth import auth_header, register_user
+from tests.helpers.listings import create_category, listing_payload
 
 
 def _auth_header(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
+    return auth_header(token)
 
 
 async def _register(
     client, *, email: str, username: str, device_id: str = "device"
 ) -> str:
-    resp = await client.post(
-        "/api/auth/register",
-        json={
-            "email": email,
-            "username": username,
-            "password": "strong-password",
-            "device_id": device_id,
-        },
+    data = await register_user(
+        client, email=email, username=username, device_id=device_id
     )
-    assert resp.status_code == 201
-    return resp.json()["access_token"]
+    return data["access_token"]
 
 
 async def _create_category(session_factory, *, name: str) -> Category:
-    async with session_factory() as session:
-        category = Category(name=name, depth=0)
-        session.add(category)
-        await session.commit()
-        await session.refresh(category)
-        return category
+    return await create_category(session_factory, name=name, depth=0)
 
 
 def _listing_payload(*, category_id: int) -> dict:
-    return {
-        "title": "Gaming laptop 2026",
-        "description": "Powerful gaming laptop with RTX graphics card, clean condition, and full accessories included.",
-        "price": 2200,
-        "is_free": False,
-        "is_tradable": False,
-        "currency": "usd",
-        "category_id": category_id,
-    }
+    return listing_payload(category_id=category_id)
 
 
 async def _create_listing(client, *, token: str, category_id: int) -> dict:

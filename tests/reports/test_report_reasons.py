@@ -11,10 +11,11 @@ from src.domains.reports.schemas import ReportReasonCreateRequest
 from src.domains.reports.service import ReportsService
 from src.domains.users.enums import UserRole
 from src.domains.users.models import Moderator, User
+from tests.helpers.auth import auth_header, register_user
 
 
 def _auth_header(token: str) -> dict:
-    return {"Authorization": f"Bearer {token}"}
+    return auth_header(token)
 
 
 async def _register(
@@ -24,17 +25,10 @@ async def _register(
     username: str,
     device_id: str = "device",
 ) -> str:
-    resp = await client.post(
-        "/api/auth/register",
-        json={
-            "email": email,
-            "username": username,
-            "password": "strong-password",
-            "device_id": device_id,
-        },
+    data = await register_user(
+        client, email=email, username=username, device_id=device_id
     )
-    assert resp.status_code == 201
-    return resp.json()["access_token"]
+    return data["access_token"]
 
 
 async def _make_moderator(session_factory, *, username: str) -> None:

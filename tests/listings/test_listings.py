@@ -13,85 +13,46 @@ from src.domains.listings.repository import ListingsRepository
 from src.domains.promotions.enums import PromotionType
 from src.domains.promotions.models import PromotionPacket
 from src.domains.users.models import User
+from tests.helpers.auth import auth_header, register_user
+from tests.helpers.listings import (
+    activate_listing,
+    create_category,
+    create_listing,
+    listing_payload,
+)
 
 _cat_id = itertools.count(1)
 
 
-# ── helpers ──────────────────────────────────────────────────────────────────
-
-
 def _auth_header(token: str) -> dict:
-    return {"Authorization": f"Bearer {token}"}
+    return auth_header(token)
 
 
 async def _register(
     client, *, email: str, username: str, device_id: str = "device"
 ) -> str:
-    resp = await client.post(
-        "/api/auth/register",
-        json={
-            "email": email,
-            "username": username,
-            "password": "strong-password",
-            "device_id": device_id,
-        },
+    data = await register_user(
+        client, email=email, username=username, device_id=device_id
     )
-    assert resp.status_code == 201
-    return resp.json()["access_token"]
+    return data["access_token"]
 
 
 async def _create_category(session_factory, *, name: str) -> Category:
-    async with session_factory() as session:
-        category = Category(id=next(_cat_id), name=name, depth=0)
-        session.add(category)
-        await session.commit()
-        await session.refresh(category)
-        return category
+    return await create_category(
+        session_factory, name=name, depth=0, category_id=next(_cat_id)
+    )
 
 
-def _listing_payload(
-    *,
-    category_id: int,
-    title: str = "Gaming laptop 2026",
-    description: str = "Powerful gaming laptop with RTX graphics card, clean condition, and full accessories included.",
-    price: int = 2200,
-    is_free: bool = False,
-    is_tradable: bool = False,
-    custom_filters: dict | None = None,
-) -> dict:
-    payload = {
-        "title": title,
-        "description": description,
-        "price": price,
-        "is_free": is_free,
-        "is_tradable": is_tradable,
-        "currency": "usd",
-        "category_id": category_id,
-    }
-    if custom_filters is not None:
-        payload["custom_filters"] = custom_filters
-
-    return payload
+def _listing_payload(**kwargs) -> dict:
+    return listing_payload(**kwargs)
 
 
 async def _create_listing(client, *, token: str, category_id: int, **kwargs) -> dict:
-    resp = await client.post(
-        "/api/listings",
-        headers=_auth_header(token),
-        json=_listing_payload(category_id=category_id, **kwargs),
-    )
-    assert resp.status_code == 200
-    return resp.json()
+    return await create_listing(client, token=token, category_id=category_id, **kwargs)
 
 
 async def _activate_listing(client, *, token: str, listing_id: str) -> dict:
-    resp = await client.put(
-        f"/api/listings/{listing_id}/status",
-        headers=_auth_header(token),
-        json={"status": "active"},
-    )
-    assert resp.status_code == 200
-    return resp.json()
+    return await activate_listing(client, token=token, listing_id=listing_id)
 
 
 async def _create_packet(

@@ -5,27 +5,17 @@ from src.domains.categories.models import Category
 from src.domains.filter_definitions.models import FilterDefinition
 from src.domains.users.enums import UserRole
 from src.domains.users.models import User
-
-
-# ── helpers ───────────────────────────────────────────────────────────────────
+from tests.helpers.auth import auth_header, login_user, register_user
+from tests.helpers.listings import create_category
 
 
 def _auth_header(token: str) -> dict:
-    return {"Authorization": f"Bearer {token}"}
+    return auth_header(token)
 
 
 async def _register(client, *, email: str, username: str) -> str:
-    resp = await client.post(
-        "/api/auth/register",
-        json={
-            "email": email,
-            "username": username,
-            "password": "strong-password",
-            "device_id": "device",
-        },
-    )
-    assert resp.status_code == 201
-    return resp.json()["access_token"]
+    data = await register_user(client, email=email, username=username)
+    return data["access_token"]
 
 
 async def _create_moderator(session_factory) -> None:
@@ -44,21 +34,12 @@ async def _create_moderator(session_factory) -> None:
 
 
 async def _login(client, *, email: str) -> str:
-    resp = await client.post(
-        "/api/auth/login",
-        json={"email": email, "password": "strong-password", "device_id": "device"},
-    )
-    assert resp.status_code == 200
-    return resp.json()["access_token"]
+    data = await login_user(client, email=email, device_id="device")
+    return data["access_token"]
 
 
 async def _create_category(session_factory, *, name: str = "Electronics") -> Category:
-    async with session_factory() as session:
-        category = Category(name=name, depth=0)
-        session.add(category)
-        await session.commit()
-        await session.refresh(category)
-        return category
+    return await create_category(session_factory, name=name, depth=0)
 
 
 def _filter_payload(**overrides) -> dict:
@@ -84,9 +65,6 @@ async def _create_filter(
         await session.commit()
         await session.refresh(filter_def)
         return filter_def
-
-
-# ── GET /api/categories/{id}/filters ─────────────────────────────────────────
 
 
 async def test_list_filter_definitions_returns_empty_when_none(client, session_factory):
@@ -122,9 +100,6 @@ async def test_list_filter_definitions_returns_all_for_category(
 async def test_list_filter_definitions_unknown_category_returns_404(client):
     resp = await client.get("/api/categories/9999/filters")
     assert resp.status_code == 404
-
-
-# ── POST /api/categories/{id}/filters ────────────────────────────────────────
 
 
 async def test_create_filter_definition_requires_moderator_role(
@@ -205,9 +180,6 @@ async def test_create_filter_definition_invalid_slug_returns_422(
     assert resp.status_code == 422
 
 
-# ── PUT /api/categories/{id}/filters/{filter_id} ─────────────────────────────
-
-
 async def test_update_filter_definition(client, session_factory):
     category = await _create_category(session_factory)
     await _create_moderator(session_factory)
@@ -245,9 +217,6 @@ async def test_update_filter_definition_to_select_without_options_returns_400(
         json={"filter_type": "select"},  # no options provided — service must catch this
     )
     assert resp.status_code == 400
-
-
-# ── DELETE /api/categories/{id}/filters/{filter_id} ──────────────────────────
 
 
 async def test_delete_filter_definition(client, session_factory):
