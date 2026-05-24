@@ -58,7 +58,10 @@ class PaymentsService:
                         quantity=1,
                     )
                 ],
-                success_url=self.stripe_config.success_url,
+                # pass amount query param in success url to receive later that amount in frontend success screen
+                success_url=self.stripe_config.success_url.format(
+                    amount=checkout_req.amount
+                ),
                 cancel_url=self.stripe_config.cancel_url,
                 metadata={"internal_session_id": str(payment_session_id)},
             )
